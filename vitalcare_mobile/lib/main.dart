@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'vitalcare/view/login_screen.dart';
+import 'vitalcare/view/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,10 +14,12 @@ class MyApp extends StatelessWidget {
       title: 'VitalCare',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF279F90)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF008BA8),
+        ).copyWith(primary: const Color(0xFF008BA8)),
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }

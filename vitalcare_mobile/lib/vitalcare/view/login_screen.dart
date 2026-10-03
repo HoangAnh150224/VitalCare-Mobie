@@ -13,8 +13,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPassword = false;
   bool _rememberLogin = false;
 
-  static const _primary = Color(0xFF228F82);
-  static const _ink = Color(0xFF20536B);
+  static const _primary = Color(0xFF00C4C7);
+  static const _ink = Color(0xFF164E50);
+  static const _link = Color(0xFF007C80);
 
   void _login() {
     if (!_formKey.currentState!.validate()) return;
@@ -29,18 +30,18 @@ class _LoginScreenState extends State<LoginScreen> {
   InputDecoration _decoration(String hint, {Widget? suffix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF8A9BA4)),
+      hintStyle: const TextStyle(color: Color(0xFF637F80)),
       filled: true,
-      fillColor: const Color(0xFFF7FAFA),
+      fillColor: const Color(0xFFF0FBFB),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       suffixIcon: suffix,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFDCE7E7)),
+        borderSide: const BorderSide(color: Color(0xFFC9EAEA)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFDCE7E7)),
+        borderSide: const BorderSide(color: Color(0xFFC9EAEA)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -87,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 36),
                         const Text(
-                          'SĐT',
+                          'Số điện thoại',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: _ink,
@@ -96,6 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 10),
                         TextFormField(
+                          cursorColor: _link,
                           decoration: _decoration('Nhập số điện thoại'),
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.next,
@@ -127,6 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 10),
                         TextFormField(
+                          cursorColor: _link,
                           decoration: _decoration(
                             'Nhập mật khẩu',
                             suffix: TextButton(
@@ -135,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               child: Text(
                                 _showPassword ? 'Ẩn' : 'Hiện',
-                                style: const TextStyle(color: _primary),
+                                style: const TextStyle(color: _link),
                               ),
                             ),
                           ),
@@ -160,6 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Checkbox(
                                   value: _rememberLogin,
                                   activeColor: _primary,
+                                  checkColor: _ink,
                                   onChanged: (value) => setState(
                                     () => _rememberLogin = value ?? false,
                                   ),
@@ -192,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text(
                                 'Quên mật khẩu?',
                                 style: TextStyle(
-                                  color: _primary,
+                                  color: _link,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -204,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: _login,
                           style: FilledButton.styleFrom(
                             backgroundColor: _primary,
-                            foregroundColor: Colors.white,
+                            foregroundColor: _ink,
                             minimumSize: const Size.fromHeight(56),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
