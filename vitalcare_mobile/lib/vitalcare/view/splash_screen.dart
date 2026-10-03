@@ -1,10 +1,45 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class SplashScreen extends StatelessWidget {
+import 'login_screen.dart';
+
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   static const logoAsset = 'assets/images/logo.jpg';
+  static const displayDuration = Duration(seconds: 3);
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(SplashScreen.displayDuration, () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement<void, void>(
+        PageRouteBuilder<void>(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const LoginScreen(),
+          transitionDuration: const Duration(milliseconds: 350),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +60,7 @@ class SplashScreen extends StatelessWidget {
                 child: AspectRatio(
                   aspectRatio: 1,
                   child: Image.asset(
-                    logoAsset,
+                    SplashScreen.logoAsset,
                     fit: BoxFit.contain,
                     semanticLabel: 'VitalCare. Care today. Healthier tomorrow.',
                     // Keep startup usable if the logo cannot be loaded.
