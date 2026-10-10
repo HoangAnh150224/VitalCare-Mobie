@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalcare_mobile/main.dart';
+import 'package:vitalcare_mobile/vitalcare/view/home_screen.dart';
 import 'package:vitalcare_mobile/vitalcare/view/login_screen.dart';
 import 'package:vitalcare_mobile/vitalcare/view/splash_screen.dart';
 
@@ -110,10 +111,9 @@ void main() {
       await tester.ensureVisible(find.byType(FilledButton));
       await tester.tap(find.byType(FilledButton));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Chức năng đăng nhập chưa được kết nối máy chủ.'),
-        findsOneWidget,
-      );
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+      expect(find.text('Chào buổi sáng, Alex'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
