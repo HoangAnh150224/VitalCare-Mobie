@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'appointment_detail_screen.dart';
+import 'exam_registration_screen.dart';
 
 class AppointmentsView extends StatefulWidget {
-  const AppointmentsView({super.key});
+  const AppointmentsView({super.key, this.registrations = const []});
+  final List<ExamRegistration> registrations;
 
   @override
   State<AppointmentsView> createState() => _AppointmentsViewState();
@@ -203,6 +205,39 @@ class _AppointmentsViewState extends State<AppointmentsView> {
                 ),
                 const SizedBox(height: 14),
                 if (!_past) ...[
+                  for (final registration in widget.registrations)
+                    Card(
+                      color: Colors.white,
+                      margin: const EdgeInsets.only(bottom: 14),
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              registration.specialty,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: _ink,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Người khám: ${registration.name}'),
+                            Text('Số điện thoại: ${registration.phone}'),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${registration.dateLabel} · ${registration.time}',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Lịch thử nghiệm · Chưa gửi cơ sở y tế',
+                              style: TextStyle(color: _muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   _appointment('BS. Taylor', 2, '10:30', 'Đã xác nhận', false),
                   _appointment('BS. Jordan', 9, '09:00', 'Chờ xác nhận', true),
                 ] else ...[
