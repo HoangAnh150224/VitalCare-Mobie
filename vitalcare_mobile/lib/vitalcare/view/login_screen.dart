@@ -65,11 +65,9 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFDFF3EF), Color(0xFFEEF9F6), Color(0xFFF6FBF9)],
-              stops: [0, 0.55, 1],
+            image: DecorationImage(
+              image: AssetImage('assets/images/anh_nen.jpg'),
+              fit: BoxFit.cover,
             ),
           ),
           child: SafeArea(
@@ -122,16 +120,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 letterSpacing: -0.3,
                                 fontWeight: FontWeight.w700,
                                 color: _ink,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Chào mừng bạn trở lại VitalCare',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.5,
-                                color: Color(0xFF597677),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -188,16 +176,18 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: _decoration(
                                 'Nhập mật khẩu',
                                 icon: Icons.lock_outline_rounded,
-                                suffix: TextButton(
+                                suffix: IconButton(
+                                  tooltip: _showPassword
+                                      ? 'Ẩn mật khẩu'
+                                      : 'Hiện mật khẩu',
                                   onPressed: () => setState(
                                     () => _showPassword = !_showPassword,
                                   ),
-                                  child: Text(
-                                    _showPassword ? 'Ẩn' : 'Hiện',
-                                    style: const TextStyle(
-                                      color: _link,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  icon: Icon(
+                                    _showPassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: _link,
                                   ),
                                 ),
                               ),
