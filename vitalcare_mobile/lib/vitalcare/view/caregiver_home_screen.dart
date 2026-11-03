@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import '../api/api.dart';
+import 'common.dart';
 import 'messages_view.dart';
 import 'notifications_screen.dart';
 import 'shared_people_view.dart';
 import 'shared_health_screen.dart';
 
+/// The caregiver's side: who shares with them (`/shared_patients`) and the
+/// emergency notices they were sent (`/emergency_alerts`).
 class CaregiverHomeScreen extends StatefulWidget {
   const CaregiverHomeScreen({super.key});
 
@@ -16,15 +20,206 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   static const _teal = Color(0xFF008C91);
   static const _muted = Color(0xFF657E80);
   int _tab = 0;
-  int _person = 0;
+  SharedPatient? _person;
+  List<SharedPatient> _people = const [];
+  List<EmergencyNotice> _notices = const [];
+  bool _loading = true;
+  Object? _error;
+  int? _acknowledging;
 
-  void _health(int index) {
-    setState(() => _person = index);
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final sharing = Api.instance.sharing;
+      final people = await sharing.sharedWithMe();
+      // Notices are extra; without them the patients still show.
+      final notices = await sharing.emergencies().catchError(
+        (Object _) => const <EmergencyNotice>[],
+      );
+      if (!mounted) return;
+      setState(() {
+        _people = people;
+        _notices = notices;
+        if (_person == null ||
+            !people.any((p) => p.customerId == _person!.customerId)) {
+          _person = people.firstOrNull;
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _health(SharedPatient person) {
+    setState(() => _person = person);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => SharedHealthScreen(personIndex: index),
+        builder: (_) => SharedHealthScreen(patient: person),
       ),
     );
+  }
+
+  Future<void> _notice(EmergencyNotice notice) async {
+    final acknowledged = notice.acknowledgedAt != null;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Cảnh báo · ${notice.patientName ?? ''}',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: _ink,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                notice.message ?? 'Chỉ số sức khỏe bất thường.',
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.6,
+                  color: _muted,
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (!acknowledged)
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(sheet);
+                    _acknowledge(notice);
+                  },
+                  style: FilledButton.styleFrom(backgroundColor: _teal),
+                  child: const Text('Đã nhận thông báo'),
+                ),
+              if (notice.emergencyPhone != null)
+                TextButton.icon(
+                  onPressed: () => callPhone(context, notice.emergencyPhone!),
+                  icon: const Icon(Icons.phone_in_talk_outlined),
+                  label: Text('Gọi ${notice.emergencyPhone}'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(sheet),
+                child: const Text('Đóng'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _acknowledge(EmergencyNotice notice) async {
+    setState(() => _acknowledging = notice.id);
+    try {
+      final updated = await Api.instance.sharing.acknowledge(notice.id);
+      if (!mounted) return;
+      setState(
+        () => _notices = [
+          for (final n in _notices) n.id == updated.id ? updated : n,
+        ],
+      );
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _acknowledging = null);
+    }
+  }
+
+  String _sharing(SharedPatient person) => [
+    if (person.shareVitals) 'chỉ số',
+    if (person.shareAlerts) 'cảnh báo',
+    if (person.shareAppointments) 'lịch hẹn',
+  ].join(', ');
+
+  List<Widget> _homeContent() {
+    if (_loading) return const [LoadingBlock()];
+    if (_error != null) return [ErrorBlock(error: _error!, onRetry: _load)];
+    return [
+      if (_people.isEmpty)
+        const EmptyBlock(
+          icon: Icons.people_outline_rounded,
+          message: 'Chưa có ai chia sẻ sức khỏe với bạn.',
+        ),
+      for (final person in _people)
+        _card(
+          person.fullName,
+          'Chia sẻ ${_sharing(person)} · Xem sức khỏe',
+          Icons.person_outline_rounded,
+          () => _health(person),
+        ),
+      if (_tab == 0) ...[
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                onPressed: _person == null ? null : () => _health(_person!),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _teal,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Xem sức khỏe'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _tab = 2),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: _teal,
+                  minimumSize: const Size.fromHeight(52),
+                  side: const BorderSide(color: Color(0xFFCCDADC)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Tin nhắn'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        for (final notice in _notices.take(5))
+          _card(
+            'Cập nhật quan trọng · ${notice.patientName ?? ''}',
+            [
+              notice.message ?? 'Chỉ số sức khỏe bất thường',
+              if (notice.notifiedAt != null) ago(notice.notifiedAt!),
+              _acknowledging == notice.id
+                  ? 'Đang xác nhận...'
+                  : notice.acknowledgedAt == null
+                  ? 'Chưa xác nhận'
+                  : 'Đã nhận',
+            ].join(' · '),
+            Icons.favorite_border_rounded,
+            () => _notice(notice),
+          ),
+      ],
+    ];
   }
 
   Widget _card(
@@ -108,7 +303,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     body: _tab == 1
         ? SharedPeopleView(onPersonSelected: _health)
         : _tab == 2
-        ? const MessagesView()
+        ? const MessagesView(caregiver: true)
         : Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -120,123 +315,65 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
             ),
             child: SafeArea(
               bottom: false,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 24, 18, 28),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 600),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (_tab == 4) ...[
-                          const Text(
-                            'Sam Morgan',
-                            style: TextStyle(
-                              fontSize: 23,
-                              fontWeight: FontWeight.w700,
-                              color: _ink,
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(18, 24, 18, 28),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_tab == 4) ...[
+                            Text(
+                              Api.instance.auth.session?.fullName ??
+                                  'Tài khoản',
+                              style: const TextStyle(
+                                fontSize: 23,
+                                fontWeight: FontWeight.w700,
+                                color: _ink,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Người thân · Hồ sơ mẫu',
-                            style: TextStyle(color: _muted),
-                          ),
-                          const SizedBox(height: 20),
-                          _card(
-                            'Về giao diện bệnh nhân',
-                            'Kết thúc xem thử giao diện người thân',
-                            Icons.swap_horiz_rounded,
-                            () => Navigator.pop(context),
-                          ),
-                        ] else ...[
-                          Text(
-                            _tab == 0
-                                ? 'Chào buổi sáng, Sam'
-                                : 'Sức khỏe được chia sẻ',
-                            style: const TextStyle(
-                              fontSize: 23,
-                              fontWeight: FontWeight.w700,
-                              color: _ink,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            '2 người đang chia sẻ sức khỏe với bạn.',
-                            style: TextStyle(fontSize: 14, color: _muted),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Bản xem thử · Dữ liệu mẫu',
-                            style: TextStyle(fontSize: 11, color: _muted),
-                          ),
-                          const SizedBox(height: 20),
-                          _card(
-                            'Alex Morgan · Cha/mẹ',
-                            'Lần đo hôm nay · Xem sức khỏe',
-                            Icons.person_outline_rounded,
-                            () => _health(0),
-                          ),
-                          _card(
-                            'Casey Morgan · Người thân',
-                            'Lần đo hôm nay · Xem sức khỏe',
-                            Icons.person_outline_rounded,
-                            () => _health(1),
-                          ),
-                          if (_tab == 0) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: () => _health(_person),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: _teal,
-                                      foregroundColor: Colors.white,
-                                      minimumSize: const Size.fromHeight(52),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: const Text('Xem sức khỏe'),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () => setState(() => _tab = 2),
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: _teal,
-                                      minimumSize: const Size.fromHeight(52),
-                                      side: const BorderSide(
-                                        color: Color(0xFFCCDADC),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: const Text('Tin nhắn'),
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 8),
+                            Text(
+                              Api.instance.auth.session?.phone ?? 'Người thân',
+                              style: const TextStyle(color: _muted),
                             ),
                             const SizedBox(height: 20),
                             _card(
-                              'Cập nhật quan trọng · Alex Morgan',
-                              'Cập nhật sức khỏe mới · 10 phút trước',
-                              Icons.favorite_border_rounded,
-                              () => _health(0),
+                              'Về giao diện bệnh nhân',
+                              'Quay về giao diện của bạn',
+                              Icons.swap_horiz_rounded,
+                              () => Navigator.pop(context),
                             ),
-                            _card(
-                              'Tin nhắn từ Jamie Lee',
-                              'Tôi có thể giúp gì? · 09:30',
-                              Icons.chat_bubble_outline_rounded,
-                              () => setState(() => _tab = 2),
+                          ] else ...[
+                            Text(
+                              _tab == 0
+                                  ? 'Xin chào${Api.instance.auth.session?.fullName == null ? '' : ', ${Api.instance.auth.session!.fullName!.trim().split(RegExp(r'\s+')).last}'}'
+                                  : 'Sức khỏe được chia sẻ',
+                              style: const TextStyle(
+                                fontSize: 23,
+                                fontWeight: FontWeight.w700,
+                                color: _ink,
+                              ),
                             ),
+                            const SizedBox(height: 10),
+                            Text(
+                              _loading
+                                  ? 'Đang tải...'
+                                  : '${_people.length} người đang chia sẻ sức khỏe với bạn.',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: _muted,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            ..._homeContent(),
                           ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),

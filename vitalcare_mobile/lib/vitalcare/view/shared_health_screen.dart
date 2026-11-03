@@ -1,11 +1,65 @@
 import 'package:flutter/material.dart';
+import '../api/api.dart';
+import 'common.dart';
 
-class SharedHealthScreen extends StatelessWidget {
-  const SharedHealthScreen({super.key, required this.personIndex});
-  final int personIndex;
+/// What one patient shares with the caregiver: latest readings, alerts and
+/// appointments (`/shared_patients/{id}/...`), each only when shared.
+class SharedHealthScreen extends StatefulWidget {
+  const SharedHealthScreen({super.key, required this.patient});
+  final SharedPatient patient;
+
+  @override
+  State<SharedHealthScreen> createState() => _SharedHealthScreenState();
+}
+
+class _SharedHealthScreenState extends State<SharedHealthScreen> {
   static const _ink = Color(0xFF164E50);
   static const _primary = Color(0xFF008C91);
   static const _muted = Color(0xFF657E80);
+
+  VitalLatest? _latest;
+  List<Alert> _alerts = const [];
+  List<Appointment> _appointments = const [];
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final patient = widget.patient;
+    final sharing = Api.instance.sharing;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final results = await Future.wait<Object?>([
+        patient.shareVitals
+            ? sharing.latest(patient.customerId)
+            : Future.value(null),
+        patient.shareAlerts
+            ? sharing.alerts(patient.customerId)
+            : Future.value(const <Alert>[]),
+        patient.shareAppointments
+            ? sharing.appointments(patient.customerId)
+            : Future.value(const <Appointment>[]),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _latest = results[0] as VitalLatest?;
+        _alerts = results[1] as List<Alert>;
+        _appointments = results[2] as List<Appointment>;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Widget _card(Widget child) => Container(
     padding: const EdgeInsets.all(16),
@@ -23,6 +77,7 @@ class SharedHealthScreen extends StatelessWidget {
     IconData icon,
     Color color,
     String time,
+    VitalMetric metric,
   ) => _card(
     Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,9 +95,20 @@ class SharedHealthScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Bình thường',
-          style: TextStyle(fontSize: 11, color: Color(0xFF33846B)),
+        Text(
+          value == '--'
+              ? 'Chưa có dữ liệu'
+              : _alerts.any((a) => a.isOpen && a.vitalMetric == metric)
+              ? 'Cần chú ý'
+              : 'Bình thường',
+          style: TextStyle(
+            fontSize: 11,
+            color: value == '--'
+                ? _muted
+                : _alerts.any((a) => a.isOpen && a.vitalMetric == metric)
+                ? const Color(0xFFB0662A)
+                : const Color(0xFF33846B),
+          ),
         ),
         const SizedBox(height: 5),
         Text(time, style: const TextStyle(fontSize: 10, color: _muted)),
@@ -82,20 +148,48 @@ class SharedHealthScreen extends StatelessWidget {
     ),
   );
 
+  String get _alertText {
+    if (!widget.patient.shareAlerts) return 'Không được chia sẻ.';
+    final open = _alerts.where((a) => a.isOpen).toList();
+    if (open.isEmpty) return 'Không có cảnh báo nào đang mở.';
+    return open
+        .take(3)
+        .map(
+          (a) =>
+              '${a.message ?? 'Chỉ số bất thường'}${a.triggeredAt == null ? '' : ' · ${relativeTime(a.triggeredAt!)}'}',
+        )
+        .join('\n');
+  }
+
+  String get _appointmentText {
+    if (!widget.patient.shareAppointments) return 'Không được chia sẻ.';
+    final now = DateTime.now();
+    final upcoming = _appointments.where((a) => a.isUpcoming(now)).toList()
+      ..sort((a, b) => (a.date ?? now).compareTo(b.date ?? now));
+    if (upcoming.isEmpty) return 'Không có lịch hẹn sắp tới.';
+    final next = upcoming.first;
+    return [
+      if (next.date != null) dayMonth(next.date!),
+      'Số ${next.queueLabel}',
+      if (next.startTime != null) 'dự kiến ${next.startTime}',
+      next.clinicName ?? 'Phòng khám',
+    ].join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final alex = personIndex == 0;
-    final name = alex ? 'Alex Morgan' : 'Casey Morgan';
-    final firstName = alex ? 'Alex' : 'Casey';
-    final time = alex ? 'Hôm nay 09:41' : 'Hôm qua 08:15';
-    final spo2 = alex ? '98%' : '97%';
-    final pulse = alex ? '72 bpm' : '75 bpm';
-    final temperature = alex ? '33,4°C' : '33,2°C';
-    final now = DateTime.now();
-    final appointment = DateTime(now.year, now.month, now.day + (alex ? 2 : 9));
-    final expires = DateTime(now.year, now.month, now.day + 14);
-    String date(DateTime value) =>
-        '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}';
+    final patient = widget.patient;
+    final latest = _latest;
+    final name = patient.fullName;
+    final firstName = name.trim().split(RegExp(r'\s+')).last;
+    final at = latest?.lastMeasuredAt;
+    final time = at == null ? ' ' : relativeTime(at);
+    final spo2 = latest?.spo2 == null ? '--' : '${decimal(latest!.spo2!)}%';
+    final pulse = latest?.heartRate == null ? '--' : '${latest!.heartRate} bpm';
+    final temperature = latest?.skinTemperature == null
+        ? '--'
+        : '${decimal(latest!.skinTemperature!)}°C';
+    final expires = patient.expiresAt;
     return Scaffold(
       backgroundColor: const Color(0xFFF6FBF9),
       appBar: AppBar(
@@ -134,10 +228,11 @@ class SharedHealthScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Dữ liệu chia sẻ mẫu',
-                      style: TextStyle(fontSize: 12, color: _muted),
-                    ),
+                    if (patient.customerCode != null)
+                      Text(
+                        'Mã khách hàng: ${patient.customerCode}',
+                        style: const TextStyle(fontSize: 12, color: _muted),
+                      ),
                     const SizedBox(height: 14),
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -168,76 +263,92 @@ class SharedHealthScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final cards = [
-                          _metric(
-                            'SpO₂',
-                            spo2,
-                            Icons.water_drop_outlined,
-                            const Color(0xFF298CAB),
-                            time,
-                          ),
-                          _metric(
-                            'Nhịp tim',
-                            pulse,
-                            Icons.favorite_border_rounded,
-                            const Color(0xFFD0767F),
-                            time,
-                          ),
-                          _metric(
-                            'Nhiệt độ da',
-                            temperature,
-                            Icons.thermostat_rounded,
-                            const Color(0xFFC28B3A),
-                            time,
-                          ),
-                        ];
-                        if (constraints.maxWidth < 320 ||
-                            MediaQuery.textScalerOf(context).scale(14) > 19) {
-                          return Column(
-                            children: [
-                              for (final card in cards)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    child: card,
+                    if (_loading) const LoadingBlock(),
+                    if (!_loading && _error != null)
+                      ErrorBlock(error: _error!, onRetry: _load),
+                    if (!_loading && _error == null && patient.shareVitals)
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final cards = [
+                            _metric(
+                              'SpO₂',
+                              spo2,
+                              Icons.water_drop_outlined,
+                              const Color(0xFF298CAB),
+                              time,
+                              VitalMetric.spo2,
+                            ),
+                            _metric(
+                              'Nhịp tim',
+                              pulse,
+                              Icons.favorite_border_rounded,
+                              const Color(0xFFD0767F),
+                              time,
+                              VitalMetric.heartRate,
+                            ),
+                            _metric(
+                              'Nhiệt độ da',
+                              temperature,
+                              Icons.thermostat_rounded,
+                              const Color(0xFFC28B3A),
+                              time,
+                              VitalMetric.skinTemperature,
+                            ),
+                          ];
+                          if (constraints.maxWidth < 320 ||
+                              MediaQuery.textScalerOf(context).scale(14) > 19) {
+                            return Column(
+                              children: [
+                                for (final card in cards)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: card,
+                                    ),
                                   ),
-                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (var i = 0; i < cards.length; i++) ...[
+                                if (i > 0) const SizedBox(width: 10),
+                                Expanded(child: cards[i]),
+                              ],
                             ],
                           );
-                        }
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (var i = 0; i < cards.length; i++) ...[
-                              if (i > 0) const SizedBox(width: 10),
-                              Expanded(child: cards[i]),
-                            ],
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    _section(
-                      'Lần đo gần nhất · $time',
-                      'SpO₂ $spo2 · Nhịp tim $pulse · Da $temperature',
-                      Icons.history_rounded,
-                    ),
-                    _section(
-                      'Thông báo quan trọng',
-                      '$firstName đã chia sẻ cập nhật sức khỏe mới.',
-                      Icons.notifications_none_rounded,
-                    ),
-                    _section(
-                      'Lịch hẹn sắp tới',
-                      '${date(appointment)} · ${alex ? '10:30' : '09:00'} · Phòng khám Trung Tâm',
-                      Icons.calendar_month_outlined,
-                    ),
+                        },
+                      ),
+                    if (!_loading && _error == null) ...[
+                      const SizedBox(height: 18),
+                      if (patient.shareVitals)
+                        _section(
+                          at == null
+                              ? 'Lần đo gần nhất'
+                              : 'Lần đo gần nhất · $time',
+                          at == null
+                              ? 'Chưa có lần đo nào.'
+                              : 'SpO₂ $spo2 · Nhịp tim $pulse · Da $temperature',
+                          Icons.history_rounded,
+                        ),
+                      _section(
+                        'Thông báo quan trọng',
+                        _alertText,
+                        Icons.notifications_none_rounded,
+                      ),
+                      _section(
+                        'Lịch hẹn sắp tới',
+                        _appointmentText,
+                        Icons.calendar_month_outlined,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
-                      '$firstName chia sẻ · Đến ${date(expires)}/${expires.year}',
+                      expires == null
+                          ? '$firstName chia sẻ · Không giới hạn thời gian'
+                          : '$firstName chia sẻ · Đến ${fullDate(expires)}',
                       style: const TextStyle(fontSize: 12, color: _muted),
                     ),
                   ],
