@@ -1,15 +1,30 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import '../api/api.dart';
+import 'common.dart';
+
+/// One conversation with a clinic (`/my_conversations/{id}`). Without
+/// [conversationId] the first message starts it (`POST /my_conversations`).
+///
+/// New replies are picked up by asking again every few seconds while the
+/// screen is open.
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
-    required this.name,
-    required this.role,
-    required this.greeting,
+    required this.clinicId,
+    required this.clinicName,
+    this.conversationId,
+    this.aboutCustomerId,
+    this.aboutName,
   });
-  final String name;
-  final String role;
-  final String greeting;
+  final String clinicId;
+  final String clinicName;
+  final int? conversationId;
+
+  /// The patient a caregiver writes about.
+  final int? aboutCustomerId;
+  final String? aboutName;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -19,48 +34,60 @@ class _ChatScreenState extends State<ChatScreen> {
   static const _ink = Color(0xFF164E50);
   static const _primary = Color(0xFF008C91);
   static const _muted = Color(0xFF657E80);
+  static const _pollEvery = Duration(seconds: 10);
   final _text = TextEditingController();
   final _scroll = ScrollController();
-  late final List<({String text, String time, bool mine, bool image})>
-  _messages = [
-    (text: widget.greeting, time: '09:30', mine: false, image: false),
-    if (widget.name == 'Jamie Lee') ...[
-      (
-        text: 'Tôi muốn hỏi về kết quả đo hôm nay.',
-        time: '09:31 · Đã đọc (mẫu)',
-        mine: true,
-        image: false,
-      ),
-      (
-        text: 'Ảnh đính kèm mẫu',
-        time: '09:32 · Đã gửi (mẫu)',
-        mine: true,
-        image: true,
-      ),
-    ],
-  ];
+  late int? _conversationId = widget.conversationId;
+  List<ChatLine> _messages = const [];
+  bool _loading = false;
+  bool _sending = false;
+  Object? _error;
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_conversationId != null) {
+      _loading = true;
+      _refresh(scroll: true);
+      _startPolling();
+    }
+  }
 
   @override
   void dispose() {
+    _poll?.cancel();
     _text.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
-  void _send() {
-    final value = _text.text.trim();
-    if (value.isEmpty) return;
-    final now = DateTime.now();
-    setState(() {
-      _messages.add((
-        text: value,
-        time:
-            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} · Chưa gửi',
-        mine: true,
-        image: false,
-      ));
-      _text.clear();
-    });
+  void _startPolling() {
+    _poll?.cancel();
+    _poll = Timer.periodic(_pollEvery, (_) => _refresh());
+  }
+
+  Future<void> _refresh({bool scroll = false}) async {
+    final id = _conversationId;
+    if (id == null) return;
+    try {
+      final thread = await Api.instance.chat.thread(id);
+      if (!mounted) return;
+      final grew = thread.messages.length != _messages.length;
+      setState(() {
+        _messages = thread.messages;
+        _error = null;
+      });
+      if (scroll || grew) _scrollToEnd();
+    } catch (e) {
+      // A failed poll keeps what is on screen; only the first load shows it.
+      if (mounted && _messages.isEmpty) setState(() => _error = e);
+    } finally {
+      if (mounted && _loading) setState(() => _loading = false);
+    }
+  }
+
+  void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _scroll.hasClients) {
         _scroll.animateTo(
@@ -72,15 +99,83 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _attach() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Chức năng chọn và tải ảnh chưa được tích hợp.'),
-        ),
-      );
+  Future<void> _send() async {
+    final value = _text.text.trim();
+    if (value.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      final chat = Api.instance.chat;
+      final id = _conversationId;
+      if (id == null) {
+        final thread = await chat.start(
+          widget.clinicId,
+          value,
+          aboutCustomerId: widget.aboutCustomerId,
+        );
+        if (!mounted) return;
+        setState(() {
+          _conversationId = thread.conversation.id;
+          _messages = thread.messages;
+        });
+        _startPolling();
+      } else {
+        final line = await chat.send(id, value);
+        if (!mounted) return;
+        setState(() => _messages = [..._messages, line]);
+      }
+      _text.clear();
+      _scrollToEnd();
+    } catch (e) {
+      // The text stays in the box so it can be sent again.
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
+
+  String _time(ChatLine message) {
+    final at = message.sentAt;
+    final when = at == null ? '' : relativeTime(at);
+    if (!message.mine) {
+      return message.senderName == null
+          ? when
+          : '${message.senderName} · $when';
+    }
+    return '$when · ${message.read ? 'Đã xem' : 'Đã gửi'}';
+  }
+
+  Widget _image(ChatLine message) {
+    final chat = Api.instance.chat;
+    final id = _conversationId;
+    final placeholder = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 22),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF8F5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.image_outlined, size: 32, color: _primary),
+          SizedBox(height: 8),
+          Text('Ảnh đính kèm', style: TextStyle(color: _muted, fontSize: 13)),
+        ],
+      ),
+    );
+    if (id == null) return placeholder;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(
+        chat.imageUri(id, message.id).toString(),
+        headers: chat.imageHeaders,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => placeholder,
+      ),
+    );
+  }
+
+  void _attach() =>
+      showNotice(context, 'Chức năng chọn và tải ảnh chưa được tích hợp.');
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -112,7 +207,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${widget.name} · ${widget.role}',
+                      widget.aboutName == null
+                          ? widget.clinicName
+                          : '${widget.clinicName} · về ${widget.aboutName}',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -121,7 +218,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Bản mô phỏng · Tin nhắn chỉ hiển thị trong phiên này, chưa gửi đến nhân viên y tế.',
+                      'Tin nhắn được gửi tới nhân viên phòng khám. Khi khẩn cấp, hãy gọi 115.',
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.5,
@@ -132,97 +229,91 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               Expanded(
-                child: ListView.builder(
-                  controller: _scroll,
-                  padding: const EdgeInsets.all(18),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, index) {
-                    final message = _messages[index];
-                    return Align(
-                      alignment: message.mine
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: 0.9,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: message.mine
-                                ? const Color(0xFFDFF3EF)
-                                : Colors.white,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: Radius.circular(
-                                message.mine ? 16 : 4,
-                              ),
-                              bottomRight: Radius.circular(
-                                message.mine ? 4 : 16,
-                              ),
-                            ),
-                            border: Border.all(color: const Color(0xFFDDEBE6)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: message.mine
-                                ? CrossAxisAlignment.end
-                                : CrossAxisAlignment.start,
-                            children: [
-                              if (message.image)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 22,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEEF8F5),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Column(
-                                    children: [
-                                      Icon(
-                                        Icons.image_outlined,
-                                        size: 32,
-                                        color: _primary,
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Ảnh đính kèm mẫu',
-                                        style: TextStyle(
-                                          color: _muted,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: Text(
-                                    message.text,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      height: 1.5,
-                                      color: _ink,
+                child: _loading
+                    ? const LoadingBlock()
+                    : _error != null
+                    ? ErrorBlock(
+                        error: _error!,
+                        onRetry: () {
+                          setState(() {
+                            _loading = true;
+                            _error = null;
+                          });
+                          _refresh(scroll: true);
+                        },
+                      )
+                    : _messages.isEmpty
+                    ? const EmptyBlock(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        message: 'Hãy gửi tin nhắn đầu tiên cho phòng khám.',
+                      )
+                    : ListView.builder(
+                        controller: _scroll,
+                        padding: const EdgeInsets.all(18),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message = _messages[index];
+                          return Align(
+                            alignment: message.mine
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor: 0.9,
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 14),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: message.mine
+                                      ? const Color(0xFFDFF3EF)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(16),
+                                    topRight: const Radius.circular(16),
+                                    bottomLeft: Radius.circular(
+                                      message.mine ? 16 : 4,
+                                    ),
+                                    bottomRight: Radius.circular(
+                                      message.mine ? 4 : 16,
                                     ),
                                   ),
+                                  border: Border.all(
+                                    color: const Color(0xFFDDEBE6),
+                                  ),
                                 ),
-                              const SizedBox(height: 8),
-                              Text(
-                                message.time,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: _muted,
+                                child: Column(
+                                  crossAxisAlignment: message.mine
+                                      ? CrossAxisAlignment.end
+                                      : CrossAxisAlignment.start,
+                                  children: [
+                                    if (message.image)
+                                      _image(message)
+                                    else
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: Text(
+                                          message.text ?? '',
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            height: 1.5,
+                                            color: _ink,
+                                          ),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _time(message),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: _muted,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
               Container(
                 padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
@@ -292,7 +383,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: FilledButton.icon(
-                            onPressed: _text.text.trim().isEmpty ? null : _send,
+                            onPressed: _text.text.trim().isEmpty || _sending
+                                ? null
+                                : _send,
                             style: FilledButton.styleFrom(
                               backgroundColor: _primary,
                               foregroundColor: Colors.white,
@@ -302,7 +395,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             ),
                             icon: const Icon(Icons.send_rounded, size: 18),
-                            label: const Text('Gửi'),
+                            label: Text(_sending ? 'Đang gửi' : 'Gửi'),
                           ),
                         ),
                       ],
