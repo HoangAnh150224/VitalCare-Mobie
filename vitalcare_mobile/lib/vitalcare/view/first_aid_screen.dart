@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../api/api.dart';
+import 'common.dart';
 import 'first_aid_guide_screen.dart';
+
+/// Published first-aid guidance (`/public/first_aid`), by category.
 
 class FirstAidScreen extends StatefulWidget {
   const FirstAidScreen({super.key});
@@ -13,40 +17,61 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
   static const _primary = Color(0xFF008C91);
   static const _muted = Color(0xFF657E80);
   final _search = TextEditingController();
-  String? _category;
+  FirstAidCategory? _category;
   static const _categories = [
-    'Hô hấp',
-    'Ngất xỉu',
-    'Sốt',
-    'Vết thương',
-    'Tổng quát',
+    FirstAidCategory.respiratory,
+    FirstAidCategory.fainting,
+    FirstAidCategory.fever,
+    FirstAidCategory.wound,
+    FirstAidCategory.general,
   ];
-  static const _guides = [
-    (
-      title: 'Khó thở',
-      subtitle: 'Cách xử trí và khi nào cần trợ giúp',
-      category: 'Hô hấp',
-      icon: Icons.air_rounded,
-    ),
-    (
-      title: 'Ngất xỉu',
-      subtitle: 'Cách giúp người bị ngất',
-      category: 'Ngất xỉu',
-      icon: Icons.personal_injury_outlined,
-    ),
-    (
-      title: 'Chăm sóc vết thương',
-      subtitle: 'Chăm sóc cơ bản và dấu hiệu cần lưu ý',
-      category: 'Vết thương',
-      icon: Icons.healing_rounded,
-    ),
-  ];
+  List<FirstAidArticle> _guides = const [];
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final category = _category;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final guides = await Api.instance.firstAid.list(category: category);
+      if (mounted && category == _category) setState(() => _guides = guides);
+    } catch (e) {
+      if (mounted && category == _category) setState(() => _error = e);
+    } finally {
+      if (mounted && category == _category) setState(() => _loading = false);
+    }
+  }
+
+  static IconData _icon(FirstAidCategory? category) => switch (category) {
+    FirstAidCategory.respiratory => Icons.air_rounded,
+    FirstAidCategory.fainting => Icons.personal_injury_outlined,
+    FirstAidCategory.fever => Icons.thermostat_rounded,
+    FirstAidCategory.wound => Icons.healing_rounded,
+    FirstAidCategory.injury => Icons.personal_injury_outlined,
+    FirstAidCategory.environment => Icons.wb_sunny_outlined,
+    _ => Icons.medical_services_outlined,
+  };
 
   @override
   void dispose() {
     _search.dispose();
     super.dispose();
   }
+
+  /// VitalCare points the way to help; it does not send it.
+  void _emergency() => _showInfo(
+    'Liên hệ khẩn cấp',
+    'VitalCare không phải dịch vụ cấp cứu. Trong tình huống nguy hiểm đến tính mạng, hãy gọi 115 ngay.',
+  );
 
   void _showInfo(String title, String message) {
     showModalBottomSheet<void>(
@@ -78,6 +103,17 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: () => callPhone(context, '115'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFAC4949),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                icon: const Icon(Icons.phone_in_talk_outlined),
+                label: const Text('Gọi 115 · Cấp cứu y tế'),
+              ),
+              const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Đóng'),
@@ -89,12 +125,14 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
     );
   }
 
-  Widget _categoryButton(String category) => Expanded(
+  Widget _categoryButton(FirstAidCategory category) => Expanded(
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: OutlinedButton(
-        onPressed: () =>
-            setState(() => _category = _category == category ? null : category),
+        onPressed: () {
+          setState(() => _category = _category == category ? null : category);
+          _load();
+        },
         style: OutlinedButton.styleFrom(
           backgroundColor: _category == category ? _primary : Colors.white,
           foregroundColor: _category == category ? Colors.white : _ink,
@@ -106,7 +144,7 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
           ),
         ),
         child: Text(
-          category,
+          category.label,
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13),
         ),
@@ -119,13 +157,9 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
     final query = _search.text.trim().toLowerCase();
     final guides = _guides
         .where(
-          (g) =>
-              (_category == null ||
-                  _category == 'Tổng quát' ||
-                  _category == g.category) &&
-              '${g.title} ${g.subtitle} ${g.category}'.toLowerCase().contains(
-                query,
-              ),
+          (g) => '${g.title} ${g.summary ?? ''} ${g.category?.label ?? ''}'
+              .toLowerCase()
+              .contains(query),
         )
         .toList();
     return Scaffold(
@@ -219,10 +253,7 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
-                      onPressed: () => _showInfo(
-                        'Liên hệ khẩn cấp',
-                        'Chưa cấu hình số liên hệ khẩn cấp. Nút này chưa thực hiện cuộc gọi. Khi cần trợ giúp khẩn cấp, hãy dùng ứng dụng Điện thoại để gọi dịch vụ cấp cứu tại nơi bạn đang ở.',
-                      ),
+                      onPressed: _emergency,
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFFAC4949),
                         foregroundColor: Colors.white,
@@ -241,7 +272,10 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    if (guides.isEmpty)
+                    if (_loading) const LoadingBlock(),
+                    if (!_loading && _error != null)
+                      ErrorBlock(error: _error!, onRetry: _load),
+                    if (!_loading && _error == null && guides.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 32),
                         child: Text(
@@ -250,76 +284,83 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
                           style: TextStyle(color: _muted),
                         ),
                       ),
-                    for (final guide in guides)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Material(
-                          color: Colors.white,
-                          clipBehavior: Clip.antiAlias,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            side: const BorderSide(color: Color(0xFFE0ECE9)),
-                          ),
-                          child: InkWell(
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    FirstAidGuideScreen(title: guide.title),
-                              ),
+                    if (!_loading)
+                      for (final guide in guides)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Material(
+                            color: Colors.white,
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              side: const BorderSide(color: Color(0xFFE0ECE9)),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEEF8F5),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      guide.icon,
-                                      color: _primary,
-                                      size: 24,
-                                    ),
+                            child: InkWell(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => FirstAidGuideScreen(
+                                    articleId: guide.id,
+                                    title: guide.title,
                                   ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          guide.title,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: _ink,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEEF8F5),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        _icon(guide.category),
+                                        color: _primary,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            guide.title,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                              color: _ink,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          guide.subtitle,
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            height: 1.5,
-                                            color: _muted,
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            guide.summary ??
+                                                guide.category?.label ??
+                                                '',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              height: 1.5,
+                                              color: _muted,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right_rounded,
-                                    size: 20,
-                                    color: _muted,
-                                  ),
-                                ],
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 20,
+                                      color: _muted,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
                   ],
                 ),
               ),

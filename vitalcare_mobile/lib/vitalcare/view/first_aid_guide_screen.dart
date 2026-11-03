@@ -1,12 +1,91 @@
 import 'package:flutter/material.dart';
+import '../api/api.dart';
+import 'common.dart';
 
-class FirstAidGuideScreen extends StatelessWidget {
-  const FirstAidGuideScreen({super.key, required this.title});
+/// One published article (`/public/first_aid/{id}`): its summary, the body's
+/// sections, the emergency warning and, when there is one, its video.
+class FirstAidGuideScreen extends StatefulWidget {
+  const FirstAidGuideScreen({
+    super.key,
+    required this.articleId,
+    required this.title,
+  });
 
+  final int articleId;
   final String title;
+
+  @override
+  State<FirstAidGuideScreen> createState() => _FirstAidGuideScreenState();
+}
+
+class _FirstAidGuideScreenState extends State<FirstAidGuideScreen> {
   static const _ink = Color(0xFF164E50);
   static const _muted = Color(0xFF657E80);
   static const _primary = Color(0xFF008C91);
+
+  FirstAidArticle? _article;
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final article = await Api.instance.firstAid.get(widget.articleId);
+      if (mounted) setState(() => _article = article);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  List<Widget> _content() {
+    if (_loading) return const [LoadingBlock()];
+    if (_error != null) return [ErrorBlock(error: _error!, onRetry: _load)];
+    final article = _article!;
+    final video = Uri.tryParse(article.videoUrl ?? '');
+    return [
+      if (article.summary != null && article.summary!.isNotEmpty)
+        _section('Tình huống', article.summary!, Icons.info_outline_rounded),
+      if (video != null && video.hasScheme)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: OutlinedButton.icon(
+            onPressed: () => openExternal(context, video),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _primary,
+              backgroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(50),
+              side: const BorderSide(color: Color(0xFFCCDADC)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            icon: const Icon(Icons.play_circle_outline_rounded),
+            label: const Text('Xem video'),
+          ),
+        ),
+      for (final (heading, text) in article.sections)
+        _section(heading ?? 'Việc cần làm', text, Icons.checklist_rounded),
+      if (article.emergencyWarning != null &&
+          article.emergencyWarning!.isNotEmpty)
+        _section(
+          'Cảnh báo quan trọng',
+          article.emergencyWarning!,
+          Icons.warning_amber_rounded,
+          warning: true,
+        ),
+    ];
+  }
 
   Widget _section(
     String heading,
@@ -55,6 +134,8 @@ class FirstAidGuideScreen extends StatelessWidget {
   }
 
   void _contact(BuildContext context) {
+    const message =
+        'VitalCare không phải dịch vụ cấp cứu. Trong tình huống nguy hiểm đến tính mạng, hãy gọi 115 ngay.';
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -76,10 +157,21 @@ class FirstAidGuideScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Chưa cấu hình số liên hệ khẩn cấp. Nút này chưa thực hiện cuộc gọi. Khi cần trợ giúp khẩn cấp, hãy dùng ứng dụng Điện thoại để gọi dịch vụ cấp cứu tại nơi bạn đang ở.',
+                message,
                 style: TextStyle(fontSize: 15, height: 1.6, color: _muted),
               ),
               const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: () => callPhone(context, '115'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFAC4949),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                icon: const Icon(Icons.phone_in_talk_outlined),
+                label: const Text('Gọi 115 · Cấp cứu y tế'),
+              ),
+              const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Đóng'),
@@ -123,7 +215,7 @@ class FirstAidGuideScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    title,
+                    _article?.title ?? widget.title,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
@@ -136,41 +228,17 @@ class FirstAidGuideScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 13, height: 1.6, color: _muted),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Nội dung mẫu · Chờ chuyên môn duyệt',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _primary,
+                  if (_article?.category != null)
+                    Text(
+                      _article!.category!.label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _primary,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 20),
-                  _section(
-                    'Tình huống',
-                    '[Mô tả tình huống đã được chuyên môn duyệt.]',
-                    Icons.info_outline_rounded,
-                  ),
-                  _section(
-                    'Việc cần làm ngay',
-                    '[Các bước theo hướng dẫn y tế đã được duyệt.]',
-                    Icons.checklist_rounded,
-                  ),
-                  _section(
-                    'Cảnh báo quan trọng',
-                    '[Dấu hiệu cần được hỗ trợ y tế khẩn cấp.]',
-                    Icons.warning_amber_rounded,
-                    warning: true,
-                  ),
-                  _section(
-                    'Những điều không nên làm',
-                    '[Các hành động cần tránh.]',
-                    Icons.block_outlined,
-                  ),
-                  _section(
-                    'Khi nào cần hỗ trợ y tế',
-                    '[Hướng dẫn rõ khi nào và cách tìm trợ giúp.]',
-                    Icons.medical_services_outlined,
-                  ),
+                  ..._content(),
                 ],
               ),
             ),
