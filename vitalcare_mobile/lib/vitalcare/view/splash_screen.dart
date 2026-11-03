@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../api/api.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,15 +20,20 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   Timer? _timer;
 
+  /// Read while the logo shows: a remembered session goes straight home.
+  late final Future<bool> _hasSession;
+
   @override
   void initState() {
     super.initState();
-    _timer = Timer(SplashScreen.displayDuration, () {
+    _hasSession = Api.instance.auth.hasSession();
+    _timer = Timer(SplashScreen.displayDuration, () async {
+      final signedIn = await _hasSession;
       if (!mounted) return;
       Navigator.of(context).pushReplacement<void, void>(
         PageRouteBuilder<void>(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const LoginScreen(),
+              signedIn ? const HomeScreen() : const LoginScreen(),
           transitionDuration: const Duration(milliseconds: 350),
           transitionsBuilder: (context, animation, secondaryAnimation, child) =>
               FadeTransition(opacity: animation, child: child),

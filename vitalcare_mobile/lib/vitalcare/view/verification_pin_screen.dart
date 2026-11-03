@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../api/api.dart';
+import 'common.dart';
 
 class VerificationPinScreen extends StatefulWidget {
   const VerificationPinScreen({super.key, required this.phoneNumber});
@@ -18,6 +20,11 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
   static const _primary = Color(0xFF008C91);
   static const _ink = Color(0xFF164E50);
   static const _link = Color(0xFF007C80);
+  bool _busy = false;
+  bool _resending = false;
+  String? _otpError;
+
+  String get _code => _digits.map((c) => c.text).join();
 
   @override
   void dispose() {
@@ -45,12 +52,14 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
     } else if (value.isEmpty && index > 0) {
       _focusNodes[index - 1].requestFocus();
     }
-    _pinKey.currentState?.didChange(_digits.map((c) => c.text).join());
+    if (_otpError != null) setState(() => _otpError = null);
+    _pinKey.currentState?.didChange(_code);
   }
 
   Widget _buildPinInput() {
     return FormField<String>(
       key: _pinKey,
+      forceErrorText: _otpError,
       validator: (_) => _digits.every((c) => RegExp(r'^\d$').hasMatch(c.text))
           ? null
           : 'Vui lòng nhập đủ 6 chữ số',
@@ -137,20 +146,48 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
     );
   }
 
-  void _showUnavailable() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Chức năng xác nhận SMS chưa được kết nối máy chủ.'),
-        ),
-      );
+  Future<void> _resend() async {
+    if (_resending) return;
+    setState(() => _resending = true);
+    try {
+      await Api.instance.auth.requestResetCode(widget.phoneNumber);
+      if (mounted) showNotice(context, 'Đã gửi lại mã xác nhận qua SMS.');
+    } on ApiException catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _resending = false);
+    }
   }
 
-  void _verify() {
+  Future<void> _verify() async {
+    if (_busy) return;
+    setState(() => _otpError = null);
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    _showUnavailable();
+    final code = _code;
+    setState(() => _busy = true);
+    try {
+      await Api.instance.auth.checkResetCode(widget.phoneNumber, code);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _otpError = e.field('otp');
+      });
+      if (_otpError == null) showError(context, e);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final done = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _NewPasswordDialog(phone: widget.phoneNumber, otp: code),
+    );
+    if (done == true && mounted) {
+      showNotice(context, 'Đã đặt lại mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới.');
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 
   @override
@@ -268,7 +305,7 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                             _buildPinInput(),
                             const SizedBox(height: 28),
                             FilledButton(
-                              onPressed: _verify,
+                              onPressed: _busy ? null : _verify,
                               style: FilledButton.styleFrom(
                                 backgroundColor: _primary,
                                 elevation: 0,
@@ -279,9 +316,9 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
-                              child: const Text(
-                                'Xác nhận',
-                                style: TextStyle(
+                              child: Text(
+                                _busy ? 'Đang kiểm tra...' : 'Xác nhận',
+                                style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -294,7 +331,7 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                               style: TextStyle(color: Color(0xFF597677)),
                             ),
                             TextButton(
-                              onPressed: _showUnavailable,
+                              onPressed: _resending ? null : _resend,
                               style: TextButton.styleFrom(
                                 foregroundColor: _link,
                                 minimumSize: const Size.fromHeight(48),
@@ -320,4 +357,99 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
       ),
     );
   }
+}
+
+/// The last step of recovery: the new password, sent with the checked code.
+class _NewPasswordDialog extends StatefulWidget {
+  const _NewPasswordDialog({required this.phone, required this.otp});
+
+  final String phone;
+  final String otp;
+
+  @override
+  State<_NewPasswordDialog> createState() => _NewPasswordDialogState();
+}
+
+class _NewPasswordDialogState extends State<_NewPasswordDialog> {
+  final _form = GlobalKey<FormState>();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_busy || !_form.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await Api.instance.auth.resetPassword(
+        widget.phone,
+        widget.otp,
+        _password.text,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = e.field('newPassword') ?? e.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Đặt mật khẩu mới'),
+    content: Form(
+      key: _form,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _password,
+              obscureText: true,
+              autofillHints: const [AutofillHints.newPassword],
+              forceErrorText: _error,
+              decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+              validator: (value) => (value ?? '').length < 8
+                  ? 'Mật khẩu phải có từ 8 đến 72 ký tự.'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _confirm,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Nhập lại mật khẩu mới',
+              ),
+              validator: (value) => value != _password.text
+                  ? 'Mật khẩu nhập lại không khớp.'
+                  : null,
+              onFieldSubmitted: (_) => _save(),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _busy ? null : () => Navigator.pop(context, false),
+        child: const Text('Hủy'),
+      ),
+      FilledButton(
+        onPressed: _busy ? null : _save,
+        child: Text(_busy ? 'Đang lưu...' : 'Lưu mật khẩu'),
+      ),
+    ],
+  );
 }
