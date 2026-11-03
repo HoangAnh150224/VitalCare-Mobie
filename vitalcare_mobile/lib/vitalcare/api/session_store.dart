@@ -80,11 +80,15 @@ class SessionStore {
       }
       await prefs.setString(_accessKey, session.accessToken);
       await prefs.setString(_refreshKey, session.refreshToken);
-      if (session.userId != null) await prefs.setInt(_userIdKey, session.userId!);
+      if (session.userId != null) {
+        await prefs.setInt(_userIdKey, session.userId!);
+      }
       if (session.fullName != null) {
         await prefs.setString(_nameKey, session.fullName!);
       }
-      if (session.phone != null) await prefs.setString(_phoneKey, session.phone!);
+      if (session.phone != null) {
+        await prefs.setString(_phoneKey, session.phone!);
+      }
     } catch (_) {
       // The in-memory session still works for this run.
     }
@@ -101,7 +105,13 @@ class SessionStore {
   }
 
   Future<void> _remove(SharedPreferences prefs) async {
-    for (final key in [_accessKey, _refreshKey, _userIdKey, _nameKey, _phoneKey]) {
+    for (final key in [
+      _accessKey,
+      _refreshKey,
+      _userIdKey,
+      _nameKey,
+      _phoneKey,
+    ]) {
       await prefs.remove(key);
     }
   }

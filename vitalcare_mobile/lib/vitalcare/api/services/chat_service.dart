@@ -10,30 +10,48 @@ class ChatService {
 
   final ApiClient _client;
 
-  Future<List<Conversation>> list() async =>
-      jsonList(await _client.get('/my_conversations')).map(Conversation.fromJson).toList();
+  Future<List<Conversation>> list() async => jsonList(
+    await _client.get('/my_conversations'),
+  ).map(Conversation.fromJson).toList();
 
-  Future<ChatThread> thread(int id) async =>
-      ChatThread.fromJson((await _client.get('/my_conversations/$id') as Map).cast<String, dynamic>());
+  Future<ChatThread> thread(int id) async => ChatThread.fromJson(
+    (await _client.get('/my_conversations/$id') as Map).cast<String, dynamic>(),
+  );
 
   /// Opens (or continues) the conversation with [clinicId] with a first message.
-  Future<ChatThread> start(String clinicId, String text, {int? aboutCustomerId}) async => ChatThread.fromJson(
+  Future<ChatThread> start(
+    String clinicId,
+    String text, {
+    int? aboutCustomerId,
+  }) async => ChatThread.fromJson(
     (await _client.post(
               '/my_conversations',
-              body: {'clinicId': clinicId, 'text': text, 'aboutCustomerId': ?aboutCustomerId},
+              body: {
+                'clinicId': clinicId,
+                'text': text,
+                'aboutCustomerId': ?aboutCustomerId,
+              },
             )
             as Map)
         .cast<String, dynamic>(),
   );
 
-  Future<ChatLine> send(int conversationId, String text) async => ChatLine.fromJson(
-    (await _client.post('/my_conversations/$conversationId/messages', body: {'text': text}) as Map)
-        .cast<String, dynamic>(),
-  );
+  Future<ChatLine> send(int conversationId, String text) async =>
+      ChatLine.fromJson(
+        (await _client.post(
+                  '/my_conversations/$conversationId/messages',
+                  body: {'text': text},
+                )
+                as Map)
+            .cast<String, dynamic>(),
+      );
 
   /// The clinics a caregiver may write to about [customerId].
   Future<List<String>> clinicsAbout(int customerId) async {
-    final body = await _client.get('/my_conversations/clinics', query: {'aboutCustomerId': customerId});
+    final body = await _client.get(
+      '/my_conversations/clinics',
+      query: {'aboutCustomerId': customerId},
+    );
     return body is List ? body.map((e) => '$e').toList() : const [];
   }
 
@@ -52,8 +70,9 @@ class SharingService {
 
   final ApiClient _client;
 
-  Future<List<SharingPermission>> mine() async =>
-      jsonList(await _client.get('/my_sharing')).map(SharingPermission.fromJson).toList();
+  Future<List<SharingPermission>> mine() async => jsonList(
+    await _client.get('/my_sharing'),
+  ).map(SharingPermission.fromJson).toList();
 
   Future<SharingPermission> grant({
     int? profileId,
@@ -100,26 +119,34 @@ class SharingService {
         .cast<String, dynamic>(),
   );
 
-  Future<SharingPermission> revoke(int id) async =>
-      SharingPermission.fromJson((await _client.post('/my_sharing/$id/revoke') as Map).cast<String, dynamic>());
-
-  Future<List<SharedPatient>> sharedWithMe() async =>
-      jsonList(await _client.get('/shared_patients')).map(SharedPatient.fromJson).toList();
-
-  Future<VitalLatest> latest(int customerId) async => VitalLatest.fromJson(
-    (await _client.get('/shared_patients/$customerId/vitals/latest') as Map).cast<String, dynamic>(),
+  Future<SharingPermission> revoke(int id) async => SharingPermission.fromJson(
+    (await _client.post('/my_sharing/$id/revoke') as Map)
+        .cast<String, dynamic>(),
   );
 
-  Future<List<Alert>> alerts(int customerId) async =>
-      jsonList(await _client.get('/shared_patients/$customerId/alerts')).map(Alert.fromJson).toList();
+  Future<List<SharedPatient>> sharedWithMe() async => jsonList(
+    await _client.get('/shared_patients'),
+  ).map(SharedPatient.fromJson).toList();
 
-  Future<List<Appointment>> appointments(int customerId) async =>
-      jsonList(await _client.get('/shared_patients/$customerId/appointments')).map(Appointment.fromJson).toList();
+  Future<VitalLatest> latest(int customerId) async => VitalLatest.fromJson(
+    (await _client.get('/shared_patients/$customerId/vitals/latest') as Map)
+        .cast<String, dynamic>(),
+  );
 
-  Future<List<EmergencyNotice>> emergencies() async =>
-      jsonList(await _client.get('/emergency_alerts')).map(EmergencyNotice.fromJson).toList();
+  Future<List<Alert>> alerts(int customerId) async => jsonList(
+    await _client.get('/shared_patients/$customerId/alerts'),
+  ).map(Alert.fromJson).toList();
+
+  Future<List<Appointment>> appointments(int customerId) async => jsonList(
+    await _client.get('/shared_patients/$customerId/appointments'),
+  ).map(Appointment.fromJson).toList();
+
+  Future<List<EmergencyNotice>> emergencies() async => jsonList(
+    await _client.get('/emergency_alerts'),
+  ).map(EmergencyNotice.fromJson).toList();
 
   Future<EmergencyNotice> acknowledge(int id) async => EmergencyNotice.fromJson(
-    (await _client.post('/emergency_alerts/$id/acknowledge') as Map).cast<String, dynamic>(),
+    (await _client.post('/emergency_alerts/$id/acknowledge') as Map)
+        .cast<String, dynamic>(),
   );
 }

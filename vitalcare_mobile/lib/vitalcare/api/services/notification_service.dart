@@ -7,7 +7,10 @@ class NotificationService {
 
   final ApiClient _client;
 
-  Future<List<AppNotification>> list({bool unreadOnly = false, int limit = 50}) async => jsonList(
+  Future<List<AppNotification>> list({
+    bool unreadOnly = false,
+    int limit = 50,
+  }) async => jsonList(
     await _client.get(
       '/notifications',
       query: {'_start': 0, '_end': limit, 'read': unreadOnly ? 'unread' : null},
@@ -20,8 +23,10 @@ class NotificationService {
     return value is num ? value.toInt() : 0;
   }
 
-  Future<AppNotification> markRead(int id) async =>
-      AppNotification.fromJson((await _client.post('/notifications/$id/read') as Map).cast<String, dynamic>());
+  Future<AppNotification> markRead(int id) async => AppNotification.fromJson(
+    (await _client.post('/notifications/$id/read') as Map)
+        .cast<String, dynamic>(),
+  );
 
   Future<void> markAllRead() => _client.post('/notifications/read-all');
 }
@@ -32,10 +37,19 @@ class FirstAidService {
 
   final ApiClient _client;
 
-  Future<List<FirstAidArticle>> list({String? query, FirstAidCategory? category}) async => jsonList(
-    await _client.get('/public/first_aid', query: {'q': query, 'category': category?.name}, auth: false),
+  Future<List<FirstAidArticle>> list({
+    String? query,
+    FirstAidCategory? category,
+  }) async => jsonList(
+    await _client.get(
+      '/public/first_aid',
+      query: {'q': query, 'category': category?.name},
+      auth: false,
+    ),
   ).map(FirstAidArticle.fromJson).toList();
 
-  Future<FirstAidArticle> get(int id) async =>
-      FirstAidArticle.fromJson((await _client.get('/public/first_aid/$id', auth: false) as Map).cast<String, dynamic>());
+  Future<FirstAidArticle> get(int id) async => FirstAidArticle.fromJson(
+    (await _client.get('/public/first_aid/$id', auth: false) as Map)
+        .cast<String, dynamic>(),
+  );
 }

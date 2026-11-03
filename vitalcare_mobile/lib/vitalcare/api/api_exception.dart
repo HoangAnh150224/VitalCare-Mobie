@@ -94,16 +94,28 @@ class ApiException implements Exception {
 /// `translateRegistrationMessage` and `translateBillingMessage`.
 const List<(String, String)> _messages = [
   // Signing in
-  ('Incorrect phone number or password', 'Số điện thoại hoặc mật khẩu không đúng.'),
-  ('This account is no longer active', 'Tài khoản đã ngừng hoạt động. Vui lòng liên hệ phòng khám.'),
+  (
+    'Incorrect phone number or password',
+    'Số điện thoại hoặc mật khẩu không đúng.',
+  ),
+  (
+    'This account is no longer active',
+    'Tài khoản đã ngừng hoạt động. Vui lòng liên hệ phòng khám.',
+  ),
   ('This account no longer exists', 'Tài khoản không còn tồn tại.'),
   ('Current password is required', 'Vui lòng nhập mật khẩu hiện tại.'),
   ('The current password is not correct', 'Mật khẩu hiện tại không đúng.'),
   ('New password must be between', 'Mật khẩu mới phải có từ 8 đến 100 ký tự.'),
   ('Refresh token is required', sessionExpiredText),
   // Phone numbers, codes, passwords (shared/api/registration.ts on the web)
-  ('Phone number must be a Vietnamese number', 'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam, ví dụ: 0901234567 hoặc +84901234567.'),
-  ('Not a valid Vietnamese phone number', 'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam, ví dụ: 0901234567 hoặc +84901234567.'),
+  (
+    'Phone number must be a Vietnamese number',
+    'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam, ví dụ: 0901234567 hoặc +84901234567.',
+  ),
+  (
+    'Not a valid Vietnamese phone number',
+    'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam, ví dụ: 0901234567 hoặc +84901234567.',
+  ),
   ('Phone number is required', 'Vui lòng nhập số điện thoại.'),
   ('Phone number is not valid', 'Số điện thoại không hợp lệ.'),
   ('Password is required', 'Vui lòng nhập mật khẩu.'),
@@ -113,56 +125,140 @@ const List<(String, String)> _messages = [
   ('The code is required', 'Vui lòng nhập mã xác nhận.'),
   ('The code is the digits', 'Mã xác nhận là dãy số trong tin nhắn SMS.'),
   ('The code is incorrect', 'Mã xác nhận không đúng hoặc đã hết hạn.'),
-  ('Please wait', 'Vừa gửi mã cho số này. Vui lòng đợi một chút trước khi yêu cầu mã mới.'),
-  ('Too many codes have been requested from this network', 'Đã yêu cầu quá nhiều mã từ mạng này. Vui lòng thử lại sau.'),
+  (
+    'Please wait',
+    'Vừa gửi mã cho số này. Vui lòng đợi một chút trước khi yêu cầu mã mới.',
+  ),
+  (
+    'Too many codes have been requested from this network',
+    'Đã yêu cầu quá nhiều mã từ mạng này. Vui lòng thử lại sau.',
+  ),
   ('Too many codes', 'Đã gửi quá nhiều mã tới số này. Vui lòng thử lại sau.'),
   // Registering a visit (AppointmentServiceImpl)
   ('Pick one of your own profiles', 'Vui lòng chọn một hồ sơ của bạn.'),
-  ("Fill in this profile's date of birth and gender", 'Hồ sơ này chưa có ngày sinh và giới tính. Vui lòng bổ sung hồ sơ trước khi đăng ký khám.'),
+  (
+    "Fill in this profile's date of birth and gender",
+    'Hồ sơ này chưa có ngày sinh và giới tính. Vui lòng bổ sung hồ sơ trước khi đăng ký khám.',
+  ),
   ('A doctor is required', 'Vui lòng chọn bác sĩ.'),
   ('A date is required', 'Vui lòng chọn ngày khám.'),
   ('A reason for the visit is required', 'Vui lòng nhập lý do khám.'),
   ('Reason must be at most', 'Lý do khám tối đa 255 ký tự.'),
   ('The date cannot be in the past', 'Ngày khám không được ở trong quá khứ.'),
-  ('Registration is open up to', 'Ngày khám vượt quá thời gian phòng khám nhận đăng ký.'),
-  ("Pick one of the clinic's doctors", 'Vui lòng chọn một bác sĩ của phòng khám.'),
-  ('That doctor is not tied to a clinic', 'Bác sĩ này chưa thuộc phòng khám nào.'),
-  ('That doctor does not see patients on that day', 'Bác sĩ không khám vào ngày đã chọn.'),
-  ('There is already a visit registered with that doctor on that day', 'Bạn đã đăng ký khám với bác sĩ này vào ngày đó.'),
-  ('That doctor has no turn left on that day', 'Bác sĩ đã hết lượt khám vào ngày đã chọn.'),
-  ("That doctor's clinic is not taking visits", 'Phòng khám của bác sĩ này đang tạm ngừng nhận khám.'),
-  ('The appointment is already with that doctor on that day', 'Lịch hẹn đã ở đúng bác sĩ và ngày này.'),
-  ('Only a registered appointment can be', 'Chỉ thay đổi được lịch hẹn đang ở trạng thái đã đăng ký.'),
-  ('An appointment can only be', 'Chỉ được đổi hoặc hủy lịch chậm nhất 2 giờ trước giờ khám dự kiến.'),
-  ('The examination fee for that appointment is not paid yet', 'Lượt khám chưa được thanh toán phí khám.'),
+  (
+    'Registration is open up to',
+    'Ngày khám vượt quá thời gian phòng khám nhận đăng ký.',
+  ),
+  (
+    "Pick one of the clinic's doctors",
+    'Vui lòng chọn một bác sĩ của phòng khám.',
+  ),
+  (
+    'That doctor is not tied to a clinic',
+    'Bác sĩ này chưa thuộc phòng khám nào.',
+  ),
+  (
+    'That doctor does not see patients on that day',
+    'Bác sĩ không khám vào ngày đã chọn.',
+  ),
+  (
+    'There is already a visit registered with that doctor on that day',
+    'Bạn đã đăng ký khám với bác sĩ này vào ngày đó.',
+  ),
+  (
+    'That doctor has no turn left on that day',
+    'Bác sĩ đã hết lượt khám vào ngày đã chọn.',
+  ),
+  (
+    "That doctor's clinic is not taking visits",
+    'Phòng khám của bác sĩ này đang tạm ngừng nhận khám.',
+  ),
+  (
+    'The appointment is already with that doctor on that day',
+    'Lịch hẹn đã ở đúng bác sĩ và ngày này.',
+  ),
+  (
+    'Only a registered appointment can be',
+    'Chỉ thay đổi được lịch hẹn đang ở trạng thái đã đăng ký.',
+  ),
+  (
+    'An appointment can only be',
+    'Chỉ được đổi hoặc hủy lịch chậm nhất 2 giờ trước giờ khám dự kiến.',
+  ),
+  (
+    'The examination fee for that appointment is not paid yet',
+    'Lượt khám chưa được thanh toán phí khám.',
+  ),
   // Sharing (Sharing.java)
-  ("Enter the caregiver's phone number", 'Vui lòng nhập số điện thoại người nhận.'),
-  ('Enter an emergency contact number', 'Vui lòng nhập số điện thoại liên hệ khẩn cấp.'),
-  ('No VitalCare account uses that number', 'Số điện thoại này chưa có tài khoản VitalCare. Hãy nhờ người thân đăng ký trước.'),
-  ('Choose somebody other than yourself', 'Hãy chọn người khác, không phải chính bạn.'),
-  ('Enter a Vietnamese phone number', 'Vui lòng nhập số điện thoại Việt Nam hợp lệ.'),
-  ('The end of access must be in the future', 'Ngày kết thúc chia sẻ phải ở tương lai.'),
-  ('That caregiver already has access', 'Người này đang được chia sẻ. Hãy thu hồi rồi chia sẻ lại nếu muốn thay đổi.'),
-  ('At most two caregivers may have access', 'Chỉ chia sẻ được tối đa 2 người cùng lúc. Hãy thu hồi một người trước.'),
-  ('Only access in force can be changed', 'Quyền chia sẻ đã hết hạn hoặc bị thu hồi. Hãy chia sẻ lại.'),
+  (
+    "Enter the caregiver's phone number",
+    'Vui lòng nhập số điện thoại người nhận.',
+  ),
+  (
+    'Enter an emergency contact number',
+    'Vui lòng nhập số điện thoại liên hệ khẩn cấp.',
+  ),
+  (
+    'No VitalCare account uses that number',
+    'Số điện thoại này chưa có tài khoản VitalCare. Hãy nhờ người thân đăng ký trước.',
+  ),
+  (
+    'Choose somebody other than yourself',
+    'Hãy chọn người khác, không phải chính bạn.',
+  ),
+  (
+    'Enter a Vietnamese phone number',
+    'Vui lòng nhập số điện thoại Việt Nam hợp lệ.',
+  ),
+  (
+    'The end of access must be in the future',
+    'Ngày kết thúc chia sẻ phải ở tương lai.',
+  ),
+  (
+    'That caregiver already has access',
+    'Người này đang được chia sẻ. Hãy thu hồi rồi chia sẻ lại nếu muốn thay đổi.',
+  ),
+  (
+    'At most two caregivers may have access',
+    'Chỉ chia sẻ được tối đa 2 người cùng lúc. Hãy thu hồi một người trước.',
+  ),
+  (
+    'Only access in force can be changed',
+    'Quyền chia sẻ đã hết hạn hoặc bị thu hồi. Hãy chia sẻ lại.',
+  ),
   ('Already revoked', 'Quyền chia sẻ này đã được thu hồi.'),
   // Devices (MyDevices.java)
-  ('This device is paired with another phone', 'Thiết bị đang ghép với điện thoại khác. Hãy hủy ghép trên máy đó trước.'),
+  (
+    'This device is paired with another phone',
+    'Thiết bị đang ghép với điện thoại khác. Hãy hủy ghép trên máy đó trước.',
+  ),
   ('At most 500 readings per upload', 'Mỗi lần gửi tối đa 500 bản ghi.'),
   // Messages (SupportChat.java)
   ('Write a message', 'Vui lòng nhập tin nhắn.'),
   ('A message must be at most', 'Tin nhắn tối đa 2000 ký tự.'),
   ('Pick a clinic', 'Vui lòng chọn phòng khám.'),
   ('Pick one of the clinics', 'Vui lòng chọn phòng khám.'),
-  ('That clinic is not taking messages', 'Phòng khám này đang tạm ngừng nhận tin nhắn.'),
-  ('That clinic does not look after this patient', 'Phòng khám này không theo dõi người bệnh này.'),
+  (
+    'That clinic is not taking messages',
+    'Phòng khám này đang tạm ngừng nhận tin nhắn.',
+  ),
+  (
+    'That clinic does not look after this patient',
+    'Phòng khám này không theo dõi người bệnh này.',
+  ),
   // Vital signs (VitalViews.java)
   ('Times must be ISO-8601', 'Khoảng thời gian không hợp lệ.'),
-  ('The start must be before the end', 'Thời điểm bắt đầu phải trước thời điểm kết thúc.'),
+  (
+    'The start must be before the end',
+    'Thời điểm bắt đầu phải trước thời điểm kết thúc.',
+  ),
   ('At most 92 days at a time', 'Chỉ xem được tối đa 92 ngày mỗi lần.'),
   // Shared by every endpoint
   ('You do not have permission', 'Bạn không có quyền thực hiện thao tác này.'),
-  ('This record was just changed by someone else', 'Dữ liệu vừa được người khác thay đổi. Tải lại rồi thử lại.'),
+  (
+    'This record was just changed by someone else',
+    'Dữ liệu vừa được người khác thay đổi. Tải lại rồi thử lại.',
+  ),
   ('Authentication is required', sessionExpiredText),
 ];
 

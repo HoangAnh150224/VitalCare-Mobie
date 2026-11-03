@@ -59,8 +59,11 @@ class ApiClient {
     return params.isEmpty ? full : full.replace(queryParameters: params);
   }
 
-  Future<Object?> get(String path, {Map<String, Object?>? query, bool auth = true}) async =>
-      (await send('GET', path, query: query, auth: auth)).body;
+  Future<Object?> get(
+    String path, {
+    Map<String, Object?>? query,
+    bool auth = true,
+  }) async => (await send('GET', path, query: query, auth: auth)).body;
 
   Future<Object?> post(String path, {Object? body, bool auth = true}) async =>
       (await send('POST', path, body: body, auth: auth)).body;
@@ -68,7 +71,8 @@ class ApiClient {
   Future<Object?> put(String path, {Object? body}) async =>
       (await send('PUT', path, body: body)).body;
 
-  Future<Object?> delete(String path) async => (await send('DELETE', path)).body;
+  Future<Object?> delete(String path) async =>
+      (await send('DELETE', path)).body;
 
   /// One request; see the class comment for the 401 handling.
   Future<ApiResponse> send(
@@ -94,7 +98,12 @@ class ApiClient {
     return token == null ? const {} : {'Authorization': 'Bearer $token'};
   }
 
-  Future<http.Response> _raw(String method, Uri target, Object? body, String? token) async {
+  Future<http.Response> _raw(
+    String method,
+    Uri target,
+    Object? body,
+    String? token,
+  ) async {
     final request = http.Request(method, target)
       ..headers['Accept'] = 'application/json';
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
@@ -116,7 +125,9 @@ class ApiClient {
     if (current != null && current.accessToken != stale.accessToken) {
       return Future.value(current);
     }
-    return _refreshing ??= _refresh(stale).whenComplete(() => _refreshing = null);
+    return _refreshing ??= _refresh(
+      stale,
+    ).whenComplete(() => _refreshing = null);
   }
 
   Future<Session> _refresh(Session stale) async {
@@ -127,7 +138,9 @@ class ApiClient {
     }, null);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final body = _json(response);
-      if (body is Map && body['accessToken'] is String && body['refreshToken'] is String) {
+      if (body is Map &&
+          body['accessToken'] is String &&
+          body['refreshToken'] is String) {
         final renewed = stale.copyWith(
           accessToken: body['accessToken'] as String,
           refreshToken: body['refreshToken'] as String,
@@ -147,7 +160,8 @@ class ApiClient {
   ApiResponse _decode(http.Response response) {
     final body = _json(response);
     final headers = {
-      for (final entry in response.headers.entries) entry.key.toLowerCase(): entry.value,
+      for (final entry in response.headers.entries)
+        entry.key.toLowerCase(): entry.value,
     };
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return ApiResponse(response.statusCode, body, headers);

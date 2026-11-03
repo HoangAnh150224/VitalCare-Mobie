@@ -5,14 +5,18 @@ library;
 
 typedef Json = Map<String, dynamic>;
 
-Json _map(Object? value) => value is Map ? value.cast<String, dynamic>() : const {};
+Json _map(Object? value) =>
+    value is Map ? value.cast<String, dynamic>() : const {};
 
-List<Json> jsonList(Object? value) =>
-    value is List ? value.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList() : const [];
+List<Json> jsonList(Object? value) => value is List
+    ? value.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList()
+    : const [];
 
-int? _int(Object? value) => value is num ? value.toInt() : int.tryParse('${value ?? ''}');
+int? _int(Object? value) =>
+    value is num ? value.toInt() : int.tryParse('${value ?? ''}');
 
-double? _double(Object? value) => value is num ? value.toDouble() : double.tryParse('${value ?? ''}');
+double? _double(Object? value) =>
+    value is num ? value.toDouble() : double.tryParse('${value ?? ''}');
 
 String? _str(Object? value) => value is String ? value : value?.toString();
 
@@ -26,7 +30,9 @@ DateTime? _instant(Object? value) =>
 DateTime? _day(Object? value) {
   if (value is! String || value.length < 10) return null;
   final parsed = DateTime.tryParse(value.substring(0, 10));
-  return parsed == null ? null : DateTime(parsed.year, parsed.month, parsed.day);
+  return parsed == null
+      ? null
+      : DateTime(parsed.year, parsed.month, parsed.day);
 }
 
 /// `HH:mm:ss` → `HH:mm`.
@@ -68,7 +74,11 @@ class CurrentUser {
 }
 
 class TokenPair {
-  const TokenPair({required this.accessToken, required this.refreshToken, this.user});
+  const TokenPair({
+    required this.accessToken,
+    required this.refreshToken,
+    this.user,
+  });
 
   factory TokenPair.fromJson(Json json) => TokenPair(
     accessToken: _str(json['accessToken']) ?? '',
@@ -86,7 +96,9 @@ class Authorities {
 
   factory Authorities.fromJson(Json json) => Authorities(
     roles: (json['roles'] as List? ?? const []).map((e) => '$e').toList(),
-    permissions: (json['permissions'] as List? ?? const []).map((e) => '$e').toList(),
+    permissions: (json['permissions'] as List? ?? const [])
+        .map((e) => '$e')
+        .toList(),
   );
 
   final List<String> roles;
@@ -147,7 +159,12 @@ class Profile {
 // ---- clinics and doctors --------------------------------------------------
 
 class Clinic {
-  const Clinic({required this.id, required this.name, this.address, this.phone});
+  const Clinic({
+    required this.id,
+    required this.name,
+    this.address,
+    this.phone,
+  });
 
   factory Clinic.fromJson(Json json) => Clinic(
     id: _str(json['id']) ?? '',
@@ -250,7 +267,11 @@ enum AppointmentStatus {
   };
 
   /// Registered or under way: the visit has not ended.
-  bool get isActive => this == scheduled || this == checkedIn || this == inExam || this == awaitingResults;
+  bool get isActive =>
+      this == scheduled ||
+      this == checkedIn ||
+      this == inExam ||
+      this == awaitingResults;
 }
 
 /// A queue registration: a doctor and a day, with a number in that day.
@@ -325,19 +346,26 @@ class Appointment {
   final DateTime? paidAt;
 
   /// The queue number as it is printed and called: `7` → `07`.
-  String get queueLabel => queueNumber == null ? '—' : queueNumber.toString().padLeft(2, '0');
+  String get queueLabel =>
+      queueNumber == null ? '—' : queueNumber.toString().padLeft(2, '0');
 
   /// Upcoming while it is not over and its day has not passed.
   bool isUpcoming(DateTime today) {
     final day = date;
     if (!status.isActive) return false;
-    return day == null || !day.isBefore(DateTime(today.year, today.month, today.day));
+    return day == null ||
+        !day.isBefore(DateTime(today.year, today.month, today.day));
   }
 }
 
 /// `GET /my_appointments/{id}/queue`.
 class AppointmentQueue {
-  const AppointmentQueue({this.ahead, this.awaitingPayment = false, this.skipped = false, this.returned = false});
+  const AppointmentQueue({
+    this.ahead,
+    this.awaitingPayment = false,
+    this.skipped = false,
+    this.returned = false,
+  });
 
   factory AppointmentQueue.fromJson(Json json) => AppointmentQueue(
     ahead: _int(json['ahead']),
@@ -355,7 +383,13 @@ class AppointmentQueue {
 
 /// `GET /my_appointments/{id}/result`: what the doctor wrote.
 class VisitResult {
-  const VisitResult({this.chiefComplaint, this.diagnosis, this.conclusion, this.followUp, this.note});
+  const VisitResult({
+    this.chiefComplaint,
+    this.diagnosis,
+    this.conclusion,
+    this.followUp,
+    this.note,
+  });
 
   factory VisitResult.fromJson(Json json) {
     final encounter = _map(json['encounter']);
@@ -409,7 +443,8 @@ class VitalLatest {
   final DateTime? lastMeasuredAt;
   final int readings24h;
 
-  bool get isEmpty => heartRate == null && spo2 == null && skinTemperature == null;
+  bool get isEmpty =>
+      heartRate == null && spo2 == null && skinTemperature == null;
 }
 
 class VitalReading {
@@ -424,7 +459,8 @@ class VitalReading {
 
   factory VitalReading.fromJson(Json json) => VitalReading(
     id: _int(json['id']) ?? 0,
-    measuredAt: _instant(json['measuredAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+    measuredAt:
+        _instant(json['measuredAt']) ?? DateTime.fromMillisecondsSinceEpoch(0),
     heartRate: _int(json['heartRate']),
     spo2: _double(json['spo2']),
     skinTemperature: _double(json['skinTemperature']),
@@ -453,7 +489,9 @@ class TrendPoint {
 
   factory TrendPoint.fromJson(Json json) => TrendPoint(
     // A clinic-local time without an offset; read as the phone's local time.
-    at: DateTime.tryParse(_str(json['at']) ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+    at:
+        DateTime.tryParse(_str(json['at']) ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0),
     readings: _int(json['readings']) ?? 0,
     heartRateAvg: _double(json['heartRateAvg']),
     spo2Avg: _double(json['spo2Avg']),
@@ -574,7 +612,11 @@ class DeviceReading {
 }
 
 class SyncRecordResult {
-  const SyncRecordResult({required this.clientRecordId, required this.outcome, this.reason});
+  const SyncRecordResult({
+    required this.clientRecordId,
+    required this.outcome,
+    this.reason,
+  });
 
   factory SyncRecordResult.fromJson(Json json) => SyncRecordResult(
     clientRecordId: _str(json['clientRecordId']) ?? '',
@@ -983,7 +1025,11 @@ class SharedPatient {
   final DateTime? expiresAt;
 
   String get initials {
-    final words = fullName.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
     if (words.isEmpty) return '?';
     final first = words.length > 1 ? words[words.length - 2][0] : '';
     return (first + words.last[0]).toUpperCase();
