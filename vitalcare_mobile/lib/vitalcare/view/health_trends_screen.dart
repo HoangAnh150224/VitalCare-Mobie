@@ -1,5 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import '../api/api.dart';
+import 'common.dart';
 import 'measurement_history_screen.dart';
+
+/// Daily averages of one reading over 7 or 30 days (`/my_vital_signs/trend`).
 
 class HealthTrendsScreen extends StatefulWidget {
   const HealthTrendsScreen({super.key});
@@ -14,28 +20,51 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
   static const _muted = Color(0xFF657E80);
   static const _labels = ['SpO₂', 'Nhịp tim', 'Nhiệt độ da'];
   static const _units = ['%', 'bpm', '°C'];
-  static const _samples = [
-    [97.0, 98.0, 97.0, 99.0, 98.0, 97.0, 98.0],
-    [74.0, 72.0, 76.0, 73.0, 75.0, 74.0, 72.0],
-    [33.2, 33.4, 33.3, 33.5, 33.2, 33.3, 33.4],
+  static const _metrics = [
+    VitalMetric.spo2,
+    VitalMetric.heartRate,
+    VitalMetric.skinTemperature,
   ];
   int _metric = 0;
   int _days = 7;
   int? _selected;
-  late final DateTime _today = DateTime.now();
-  List<double> get _values =>
-      List.generate(_days, (i) => _samples[_metric][(i + 7 - _days % 7) % 7]);
+  VitalTrend? _trend;
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _selected = null;
+    });
+    final days = _days;
+    try {
+      final now = DateTime.now();
+      final trend = await Api.instance.health.trend(
+        from: DateUtils.dateOnly(now).subtract(Duration(days: days - 1)),
+        to: now,
+      );
+      if (mounted && days == _days) setState(() => _trend = trend);
+    } catch (e) {
+      if (mounted && days == _days) setState(() => _error = e);
+    } finally {
+      if (mounted && days == _days) setState(() => _loading = false);
+    }
+  }
+
+  List<(DateTime, double)> get _series =>
+      _trend?.series(_metrics[_metric]) ?? const [];
   String _number(double value) => value
       .toStringAsFixed(_metric == 2 || value != value.roundToDouble() ? 1 : 0)
       .replaceAll('.', ',');
-  String _date(int index) {
-    final date = DateTime(
-      _today.year,
-      _today.month,
-      _today.day - _days + 1 + index,
-    );
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
-  }
+  String _date(int index) => dayMonth(_series[index].$1);
 
   Widget _selector(
     List<String> labels,
@@ -77,10 +106,72 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
     child: child,
   );
 
+  Widget _chart(List<double> values) {
+    if (_loading) return const SizedBox(height: 190, child: LoadingBlock());
+    if (_error != null) return ErrorBlock(error: _error!, onRetry: _load);
+    if (values.length < 2) {
+      return const SizedBox(
+        height: 190,
+        child: Center(
+          child: Text(
+            'Chưa đủ dữ liệu trong khoảng thời gian này.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: _muted),
+          ),
+        ),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        void select(Offset position) {
+          final index =
+              ((position.dx - 38) /
+                      (constraints.maxWidth - 46) *
+                      (values.length - 1))
+                  .round()
+                  .clamp(0, values.length - 1);
+          setState(() => _selected = index);
+        }
+
+        return Semantics(
+          label:
+              'Biểu đồ ${_labels[_metric]}, $_days ngày. Vuốt hoặc chạm để chọn ngày.',
+          value: _selected == null
+              ? null
+              : '${_date(_selected!)}: ${_number(values[_selected!])} ${_units[_metric]}',
+          onIncrease: () => setState(
+            () =>
+                _selected = ((_selected ?? 0) + 1).clamp(0, values.length - 1),
+          ),
+          onDecrease: () => setState(
+            () => _selected = ((_selected ?? values.length - 1) - 1).clamp(
+              0,
+              values.length - 1,
+            ),
+          ),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (d) => select(d.localPosition),
+            onHorizontalDragUpdate: (d) => select(d.localPosition),
+            child: SizedBox(
+              height: 190,
+              child: CustomPaint(
+                painter: _TrendPainter(values, _metric, _selected),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final values = _values;
-    final average = values.reduce((a, b) => a + b) / values.length;
+    final series = _series;
+    final values = [for (final point in series) point.$2];
+    final average = values.isEmpty
+        ? null
+        : values.reduce((a, b) => a + b) / values.length;
     return Scaffold(
       backgroundColor: const Color(0xFFF6FBF9),
       appBar: AppBar(
@@ -119,14 +210,15 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                       }),
                     ),
                     const SizedBox(height: 12),
-                    _selector(
-                      ['7 ngày', '30 ngày'],
-                      _days == 7 ? 0 : 1,
-                      (value) => setState(() {
+                    _selector(['7 ngày', '30 ngày'], _days == 7 ? 0 : 1, (
+                      value,
+                    ) {
+                      setState(() {
                         _days = value == 0 ? 7 : 30;
                         _selected = null;
-                      }),
-                    ),
+                      });
+                      _load();
+                    }),
                     const SizedBox(height: 20),
                     _card(
                       Column(
@@ -142,81 +234,42 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            'Dữ liệu mô phỏng',
+                            'Trung bình mỗi ngày có đo',
                             style: TextStyle(fontSize: 12, color: _muted),
                           ),
                           const SizedBox(height: 22),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              void select(Offset position) {
-                                final index =
-                                    ((position.dx - 38) /
-                                            (constraints.maxWidth - 46) *
-                                            (values.length - 1))
-                                        .round()
-                                        .clamp(0, values.length - 1);
-                                setState(() => _selected = index);
-                              }
-
-                              return Semantics(
-                                label:
-                                    'Biểu đồ ${_labels[_metric]}, $_days ngày. Vuốt hoặc chạm để chọn ngày.',
-                                value: _selected == null
-                                    ? null
-                                    : '${_date(_selected!)}: ${_number(values[_selected!])} ${_units[_metric]}',
-                                onIncrease: () => setState(
-                                  () => _selected = ((_selected ?? 0) + 1)
-                                      .clamp(0, values.length - 1),
-                                ),
-                                onDecrease: () => setState(
-                                  () => _selected =
-                                      ((_selected ?? values.length - 1) - 1)
-                                          .clamp(0, values.length - 1),
-                                ),
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTapDown: (d) => select(d.localPosition),
-                                  onHorizontalDragUpdate: (d) =>
-                                      select(d.localPosition),
-                                  child: SizedBox(
-                                    height: 190,
-                                    child: CustomPaint(
-                                      painter: _TrendPainter(
-                                        values,
-                                        _metric,
-                                        _selected,
-                                      ),
-                                    ),
+                          _chart(values),
+                          if (values.length >= 2) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _date(0),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: _muted,
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _date(0),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: _muted,
+                                Text(
+                                  _date(values.length ~/ 2),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: _muted,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                _date(_days ~/ 2),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: _muted,
+                                Text(
+                                  relativeDay(series.last.$1),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: _muted,
+                                  ),
                                 ),
-                              ),
-                              const Text(
-                                'Hôm nay',
-                                style: TextStyle(fontSize: 11, color: _muted),
-                              ),
-                            ],
-                          ),
-                          if (_selected != null) ...[
+                              ],
+                            ),
+                          ],
+                          if (_selected != null &&
+                              _selected! < values.length) ...[
                             const SizedBox(height: 16),
                             Text(
                               '${_date(_selected!)} · ${_labels[_metric]}: ${_number(values[_selected!])} ${_units[_metric]}',
@@ -245,7 +298,9 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Mới nhất: ${_number(values.last)} ${_units[_metric]} · Trung bình: ${_number(average)} ${_units[_metric]}',
+                            average == null
+                                ? 'Chưa có lần đo nào trong $_days ngày gần đây.'
+                                : 'Mới nhất: ${_number(values.last)} ${_units[_metric]} · Trung bình: ${_number(average)} ${_units[_metric]}',
                             style: const TextStyle(
                               fontSize: 14,
                               height: 1.6,
@@ -253,9 +308,9 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          const Text(
-                            'Các giá trị mẫu tương tự những lần đo gần đây.',
-                            style: TextStyle(
+                          Text(
+                            '${values.length} ngày có đo trong $_days ngày gần đây.',
+                            style: const TextStyle(
                               fontSize: 14,
                               height: 1.6,
                               color: _muted,
@@ -316,8 +371,15 @@ class _TrendPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final min = [96.0, 68.0, 33.0][metric];
-    final max = [100.0, 80.0, 33.8][metric];
+    // The usual band of each reading, widened when the data leaves it.
+    final min = math.min(
+      [96.0, 68.0, 33.0][metric],
+      values.reduce(math.min).floorToDouble(),
+    );
+    final max = math.max(
+      [100.0, 80.0, 33.8][metric],
+      values.reduce(math.max).ceilToDouble(),
+    );
     final height = size.height - 16;
     for (var i = 0; i < 3; i++) {
       final y = 8 + height * i / 2;
