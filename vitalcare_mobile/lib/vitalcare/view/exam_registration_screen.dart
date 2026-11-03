@@ -223,9 +223,9 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
 
   Widget _dateField() => FormField<DateTime>(
     validator: (_) => _date == null ? 'Vui lòng chọn ngày khám' : null,
-    forceErrorText: _serverErrors['appointmentDate'],
     builder: (field) {
       final value = _date;
+      final error = field.errorText ?? _serverErrors['appointmentDate'];
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -247,11 +247,11 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
               value == null ? 'Chọn ngày khám' : 'Ngày khám: ${_format(value)}',
             ),
           ),
-          if (field.hasError)
+          if (error != null)
             Padding(
               padding: const EdgeInsets.only(top: 8, left: 12),
               child: Text(
-                field.errorText!,
+                error,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),

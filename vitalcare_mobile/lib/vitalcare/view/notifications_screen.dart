@@ -63,15 +63,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (!item.read) {
       // Shown as read at once; put back if the server refuses.
       _replace(item.markedRead());
-      Api.instance.notifications.markRead(item.id).then(_replace).catchError((
-        Object e,
-      ) {
-        if (mounted) {
-          _replace(item);
-          showError(context, e);
-        }
-        return item;
-      });
+      Api.instance.notifications
+          .markRead(item.id)
+          .then((updated) {
+            if (mounted) _replace(updated);
+          })
+          .catchError((Object e) {
+            if (mounted) {
+              _replace(item);
+              showError(context, e);
+            }
+          });
     }
     showModalBottomSheet<void>(
       context: context,

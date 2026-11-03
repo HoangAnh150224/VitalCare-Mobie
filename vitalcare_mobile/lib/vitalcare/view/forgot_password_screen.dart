@@ -156,7 +156,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           const SizedBox(height: 10),
                           TextFormField(
                             controller: _phoneController,
-                            forceErrorText: _phoneError,
                             onChanged: (_) {
                               if (_phoneError != null) {
                                 setState(() => _phoneError = null);
@@ -172,6 +171,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             cursorColor: _link,
                             style: const TextStyle(fontSize: 16, color: _ink),
                             decoration: InputDecoration(
+                              errorText: _phoneError,
+                              errorMaxLines: 3,
                               hintText: 'Nhập số điện thoại',
                               hintStyle: const TextStyle(
                                 color: Color(0xFF597677),

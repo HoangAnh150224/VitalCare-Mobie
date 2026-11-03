@@ -59,90 +59,97 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
   Widget _buildPinInput() {
     return FormField<String>(
       key: _pinKey,
-      forceErrorText: _otpError,
       validator: (_) => _digits.every((c) => RegExp(r'^\d$').hasMatch(c.text))
           ? null
           : 'Vui lòng nhập đủ 6 chữ số',
-      builder: (field) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: List.generate(6, (index) {
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: index < 5 ? 8 : 0),
-                  child: TextField(
-                    controller: _digits[index],
-                    focusNode: _focusNodes[index],
-                    onTap: () {
-                      _digits[index].selection = TextSelection(
-                        baseOffset: 0,
-                        extentOffset: _digits[index].text.length,
-                      );
-                    },
-                    onChanged: (value) => _updatePin(index, value),
-                    onSubmitted: (_) => index == 5
-                        ? _verify()
-                        : _focusNodes[index + 1].requestFocus(),
-                    keyboardType: TextInputType.number,
-                    textInputAction: index == 5
-                        ? TextInputAction.done
-                        : TextInputAction.next,
-                    autofillHints: index == 0
-                        ? const [AutofillHints.oneTimeCode]
-                        : null,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
-                    ],
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    textAlign: TextAlign.center,
-                    cursorColor: _link,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: _ink,
-                    ),
-                    decoration: InputDecoration(
-                      semanticCounterText: 'Chữ số ${index + 1} trên 6',
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+      builder: (field) {
+        final error = field.errorText ?? _otpError;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: List.generate(6, (index) {
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: index < 5 ? 8 : 0),
+                    child: TextField(
+                      controller: _digits[index],
+                      focusNode: _focusNodes[index],
+                      onTap: () {
+                        _digits[index].selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: _digits[index].text.length,
+                        );
+                      },
+                      onChanged: (value) => _updatePin(index, value),
+                      onSubmitted: (_) => index == 5
+                          ? _verify()
+                          : _focusNodes[index + 1].requestFocus(),
+                      keyboardType: TextInputType.number,
+                      textInputAction: index == 5
+                          ? TextInputAction.done
+                          : TextInputAction.next,
+                      autofillHints: index == 0
+                          ? const [AutofillHints.oneTimeCode]
+                          : null,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      textAlign: TextAlign.center,
+                      cursorColor: _link,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: _ink,
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: field.hasError
-                              ? Theme.of(context).colorScheme.error
-                              : const Color(0xFFCCDADC),
+                      decoration: InputDecoration(
+                        semanticCounterText: 'Chữ số ${index + 1} trên 6',
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 16,
                         ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: _primary, width: 2),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: error != null
+                                ? Theme.of(context).colorScheme.error
+                                : const Color(0xFFCCDADC),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: _primary,
+                            width: 2,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
-          if (field.hasError)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                field.errorText!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
+                );
+              }),
+            ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  error,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -185,7 +192,10 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
       builder: (_) => _NewPasswordDialog(phone: widget.phoneNumber, otp: code),
     );
     if (done == true && mounted) {
-      showNotice(context, 'Đã đặt lại mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới.');
+      showNotice(
+        context,
+        'Đã đặt lại mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới.',
+      );
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
@@ -419,8 +429,11 @@ class _NewPasswordDialogState extends State<_NewPasswordDialog> {
               controller: _password,
               obscureText: true,
               autofillHints: const [AutofillHints.newPassword],
-              forceErrorText: _error,
-              decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+              decoration: InputDecoration(
+                labelText: 'Mật khẩu mới',
+                errorText: _error,
+                errorMaxLines: 3,
+              ),
               validator: (value) => (value ?? '').length < 8
                   ? 'Mật khẩu phải có từ 8 đến 72 ký tự.'
                   : null,

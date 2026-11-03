@@ -431,9 +431,9 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
             TextFormField(
               controller: _current,
               obscureText: true,
-              forceErrorText: _errors['currentPassword'] ?? _message,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Mật khẩu hiện tại',
+                errorText: _errors['currentPassword'] ?? _message,
                 errorMaxLines: 3,
               ),
               validator: (value) => (value ?? '').isEmpty
@@ -444,8 +444,11 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
             TextFormField(
               controller: _next,
               obscureText: true,
-              forceErrorText: _errors['newPassword'],
-              decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+              decoration: InputDecoration(
+                labelText: 'Mật khẩu mới',
+                errorText: _errors['newPassword'],
+                errorMaxLines: 3,
+              ),
               validator: (value) => (value ?? '').length < 8
                   ? 'Mật khẩu mới phải có từ 8 đến 100 ký tự.'
                   : null,

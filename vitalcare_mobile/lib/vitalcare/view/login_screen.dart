@@ -62,9 +62,11 @@ class _LoginScreenState extends State<LoginScreen> {
     String hint, {
     required IconData icon,
     Widget? suffix,
+    String? error,
   }) {
     return InputDecoration(
       hintText: hint,
+      errorText: error,
       hintStyle: const TextStyle(color: Color(0xFF778A91), fontSize: 15),
       filled: true,
       fillColor: Colors.white,
@@ -165,7 +167,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 10),
                             TextFormField(
                               controller: _phone,
-                              forceErrorText: _serverErrors['phone'],
                               onChanged: (_) {
                                 if (_serverErrors.isNotEmpty) {
                                   setState(() => _serverErrors = const {});
@@ -176,6 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: _decoration(
                                 'Nhập số điện thoại',
                                 icon: Icons.phone_outlined,
+                                error: _serverErrors['phone'],
                               ),
                               keyboardType: TextInputType.phone,
                               textInputAction: TextInputAction.next,
@@ -210,7 +212,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 10),
                             TextFormField(
                               controller: _password,
-                              forceErrorText: _serverErrors['password'],
                               onChanged: (_) {
                                 if (_serverErrors.isNotEmpty) {
                                   setState(() => _serverErrors = const {});
@@ -221,6 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: _decoration(
                                 'Nhập mật khẩu',
                                 icon: Icons.lock_outline_rounded,
+                                error: _serverErrors['password'],
                                 suffix: IconButton(
                                   tooltip: _showPassword
                                       ? 'Ẩn mật khẩu'
@@ -330,7 +332,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 12),
-                                  const Icon(Icons.arrow_forward_rounded, size: 20),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 20,
+                                  ),
                                 ],
                               ),
                             ),
