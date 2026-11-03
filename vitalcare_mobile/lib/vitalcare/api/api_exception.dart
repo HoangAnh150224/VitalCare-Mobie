@@ -95,6 +95,19 @@ class ApiException implements Exception {
 const List<(String, String)> _messages = [
   // Signing in
   (
+    'No account uses this phone number',
+    'Số điện thoại này chưa đăng ký tài khoản. Hãy đăng ký trước.',
+  ),
+  (
+    'Incorrect password',
+    'Mật khẩu không đúng. Kiểm tra lại hoặc dùng "Quên mật khẩu?".',
+  ),
+  (
+    'This account is locked',
+    'Tài khoản đang bị khoá. Vui lòng liên hệ quản trị phòng khám để mở khoá.',
+  ),
+  // Older servers answered every failed sign-in with this one sentence.
+  (
     'Incorrect phone number or password',
     'Số điện thoại hoặc mật khẩu không đúng.',
   ),
