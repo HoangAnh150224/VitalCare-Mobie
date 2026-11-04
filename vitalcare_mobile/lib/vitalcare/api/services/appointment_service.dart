@@ -29,10 +29,11 @@ class AppointmentService {
     _json(await _client.get('/my_appointments/$id/result')),
   );
 
-  /// Registers a visit with [doctorId] on [date]; the answer carries the queue number.
+  /// Registers a visit at [clinicId] on [date]; the clinic places it with its
+  /// least-busy doctor that day and the answer carries the doctor and number.
   Future<Appointment> book({
     int? patientId,
-    required int doctorId,
+    required String clinicId,
     required DateTime date,
     required String reason,
   }) async => Appointment.fromJson(
@@ -41,9 +42,9 @@ class AppointmentService {
         '/my_appointments',
         body: {
           'patientId': ?patientId,
-          'employeeId': doctorId,
           'appointmentDate': isoDay(date),
           'reason': reason,
+          'clinicId': clinicId,
         },
       ),
     ),
@@ -53,19 +54,17 @@ class AppointmentService {
     _json(await _client.post('/my_appointments/$id/cancel')),
   );
 
-  /// Moves the visit to another day (and optionally another doctor); it gets a new number.
-  Future<Appointment> reschedule(
-    int id,
-    DateTime date, {
-    int? doctorId,
-  }) async => Appointment.fromJson(
-    _json(
-      await _client.post(
-        '/my_appointments/$id/reschedule',
-        body: {'appointmentDate': isoDay(date), 'employeeId': ?doctorId},
-      ),
-    ),
-  );
+  /// Moves the visit to another day; the clinic keeps the doctor when they
+  /// have a turn left, else places it with another. It gets a new number.
+  Future<Appointment> reschedule(int id, DateTime date) async =>
+      Appointment.fromJson(
+        _json(
+          await _client.post(
+            '/my_appointments/$id/reschedule',
+            body: {'appointmentDate': isoDay(date)},
+          ),
+        ),
+      );
 
   /// Clinics as the public site lists them, with their phone numbers.
   Future<List<Clinic>> clinics() async => jsonList(

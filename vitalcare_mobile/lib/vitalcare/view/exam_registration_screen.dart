@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../api/api.dart';
 import 'common.dart';
 
-/// Registers a visit: a doctor and a day. The clinic gives the next queue
-/// number of that doctor's day; there is no time slot to choose.
+/// Registers a visit: a clinic and a day. The clinic places it with its
+/// least-busy doctor that day and gives the next queue number.
 ///
 /// Pops with the created [Appointment].
 class ExamRegistrationScreen extends StatefulWidget {
@@ -19,7 +19,6 @@ class ExamRegistrationScreen extends StatefulWidget {
 
 class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
   static const _primary = Color(0xFF008C91);
-  static const _general = 'Khám tổng quát';
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _phone = TextEditingController();
@@ -27,8 +26,6 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
   final _reason = TextEditingController();
   Profile? _profile;
   DateTime? _date;
-  String? _specialty;
-  int? _doctorId;
   String? _clinicId;
   List<Clinic> _clinics = const [];
   List<Doctor> _doctors = const [];
@@ -86,7 +83,8 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
     return profiles.where((p) => p.self).firstOrNull ?? profiles.firstOrNull;
   }
 
-  /// The clinic's doctors, with how the chosen day looks for each.
+  /// The clinic's doctors, with how the chosen day looks for each; only used
+  /// to tell whether the day can be had.
   Future<void> _loadDoctors() async {
     final clinicId = _clinicId;
     if (clinicId == null) return;
@@ -97,13 +95,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
         date: _date,
       );
       if (!mounted || clinicId != _clinicId) return;
-      setState(() {
-        _doctors = doctors;
-        if (_specialty != null && !_specialties.contains(_specialty)) {
-          _specialty = null;
-        }
-        if (!_visibleDoctors.any((d) => d.id == _doctorId)) _doctorId = null;
-      });
+      setState(() => _doctors = doctors);
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -111,17 +103,13 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
     }
   }
 
-  String _specialtyOf(Doctor doctor) =>
-      doctor.specialty == null || doctor.specialty!.trim().isEmpty
-      ? _general
-      : doctor.specialty!;
-
-  List<String> get _specialties =>
-      {for (final d in _doctors) _specialtyOf(d)}.toList()..sort();
-
-  List<Doctor> get _visibleDoctors => _doctors
-      .where((d) => _specialty == null || _specialtyOf(d) == _specialty)
-      .toList();
+  /// Null until a day is chosen and its doctors are loaded.
+  bool? get _dayOpen {
+    if (_date == null || _loadingDoctors) return null;
+    return _doctors.any(
+      (d) => d.day != null && d.day!.working && d.day!.bookable,
+    );
+  }
 
   String _format(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
@@ -153,21 +141,9 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
     await _loadDoctors();
   }
 
-  String _doctorLabel(Doctor doctor) {
-    final day = doctor.day;
-    if (_date == null || day == null) return doctor.label;
-    if (!day.working) return '${doctor.label} · Không khám ngày này';
-    if (!day.bookable) return '${doctor.label} · Hết lượt';
-    final from = day.estimatedStart == null
-        ? ''
-        : ' · dự kiến ${day.estimatedStart}';
-    return '${doctor.label} · Còn ${day.remaining} lượt$from';
-  }
-
   Future<void> _submit() async {
     if (_saving || !_form.currentState!.validate()) return;
     final profile = _profile;
-    final doctor = _doctors.firstWhere((d) => d.id == _doctorId);
     setState(() {
       _saving = true;
       _serverErrors = const {};
@@ -179,9 +155,9 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
         content: SingleChildScrollView(
           child: Text(
             '${_name.text}\n${_phone.text}\nNgày sinh: ${_birth.text.isEmpty ? '—' : _birth.text}\n'
-            '${_specialtyOf(doctor)} · ${doctor.label}\n'
+            'Phòng khám: ${_clinics.firstWhere((c) => c.id == _clinicId).name}\n'
             'Ngày khám: ${_format(_date!)}\nLý do khám: ${_reason.text.trim()}\n\n'
-            'Bạn sẽ nhận số thứ tự khám ngay sau khi đăng ký.',
+            'Phòng khám sẽ xếp bạn vào một bác sĩ khám trong ngày; tên bác sĩ và số khám hiện trên phiếu sau khi đăng ký.',
           ),
         ),
         actions: [
@@ -204,7 +180,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
     try {
       final appointment = await Api.instance.appointments.book(
         patientId: profile == null || profile.self ? null : profile.id,
-        doctorId: doctor.id,
+        clinicId: _clinicId!,
         date: _date!,
         reason: _reason.text.trim(),
       );
@@ -334,8 +310,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
                 setState(() {
                   _clinicId = value;
                   _doctors = const [];
-                  _doctorId = null;
-                  _specialty = null;
+                  _serverErrors = const {};
                 });
                 _loadDoctors();
               },
@@ -344,55 +319,19 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
             ),
             const SizedBox(height: 16),
           ],
-          DropdownButtonFormField<String>(
-            key: ValueKey('specialty-$_clinicId-${_specialties.join()}'),
-            initialValue: _specialty,
-            isExpanded: true,
-            decoration: _decoration('Chuyên khoa'),
-            items: _specialties
-                .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-                .toList(),
-            onChanged: (value) => setState(() {
-              _specialty = value;
-              if (!_visibleDoctors.any((d) => d.id == _doctorId)) {
-                _doctorId = null;
-              }
-            }),
-            validator: (value) =>
-                value == null ? 'Vui lòng chọn chuyên khoa' : null,
-          ),
-          const SizedBox(height: 16),
           _dateField(),
           const SizedBox(height: 16),
-          DropdownButtonFormField<int>(
-            key: ValueKey(
-              'doctor-$_specialty-$_date-$_doctorId-${_doctors.length}',
+          if (_dayOpen == false)
+            Text(
+              'Ngày này phòng khám không có bác sĩ khám hoặc đã hết lượt. Vui lòng chọn ngày khác.',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            )
+          else if (_dayOpen == true)
+            const Text(
+              'Phòng khám sẽ xếp bạn vào một bác sĩ khám trong ngày; tên bác sĩ và số khám hiện trên phiếu sau khi đăng ký.',
+              style: TextStyle(color: Color(0xFF657E80), height: 1.5),
             ),
-            initialValue: _doctorId,
-            isExpanded: true,
-            decoration: _decoration(
-              _loadingDoctors ? 'Bác sĩ (đang tải...)' : 'Bác sĩ',
-              error: _serverErrors['employeeId'],
-            ),
-            items: _visibleDoctors
-                .map(
-                  (doctor) => DropdownMenuItem(
-                    value: doctor.id,
-                    enabled: _date == null || doctor.day?.bookable != false,
-                    child: Text(
-                      _doctorLabel(doctor),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) => setState(() {
-              _doctorId = value;
-              _serverErrors = const {};
-            }),
-            validator: (value) => value == null ? 'Vui lòng chọn bác sĩ' : null,
-          ),
-          const SizedBox(height: 16),
+          if (_dayOpen != null) const SizedBox(height: 16),
           TextFormField(
             controller: _reason,
             decoration: _decoration(
@@ -416,7 +355,8 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
               backgroundColor: _primary,
               minimumSize: const Size.fromHeight(54),
             ),
-            onPressed: _saving || incomplete || _clinics.isEmpty
+            onPressed:
+                _saving || incomplete || _clinics.isEmpty || _dayOpen == false
                 ? null
                 : _submit,
             icon: const Icon(Icons.event_available),

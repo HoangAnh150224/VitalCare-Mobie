@@ -137,7 +137,10 @@ const List<(String, String)> _messages = [
     'Full name may only contain letters',
     'Họ và tên chỉ được chứa chữ cái và khoảng trắng; không được chứa số hoặc ký tự đặc biệt.',
   ),
-  ('Password cannot contain only spaces', 'Mật khẩu không được chỉ chứa khoảng trắng.'),
+  (
+    'Password cannot contain only spaces',
+    'Mật khẩu không được chỉ chứa khoảng trắng.',
+  ),
   ('Full name must be at most', 'Họ và tên không được vượt quá 255 ký tự.'),
   (
     'Phone number must be a Vietnamese number',
@@ -191,6 +194,14 @@ const List<(String, String)> _messages = [
   (
     'That doctor does not see patients on that day',
     'Bác sĩ không khám vào ngày đã chọn.',
+  ),
+  (
+    'No doctor has a turn left at that clinic on that day',
+    'Ngày này phòng khám không có bác sĩ khám hoặc đã hết lượt. Vui lòng chọn ngày khác.',
+  ),
+  (
+    'There is already a visit registered at that clinic on that day',
+    'Bạn đã đăng ký khám tại phòng khám này trong ngày đó rồi.',
   ),
   (
     'There is already a visit registered with that doctor on that day',
