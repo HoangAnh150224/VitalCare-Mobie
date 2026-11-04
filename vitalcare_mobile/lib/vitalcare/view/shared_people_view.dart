@@ -1,20 +1,60 @@
 import 'package:flutter/material.dart';
+import '../api/api.dart';
+import 'common.dart';
 
-class SharedPeopleView extends StatelessWidget {
+/// The patients who share their health with the caregiver (`/shared_patients`).
+class SharedPeopleView extends StatefulWidget {
   const SharedPeopleView({super.key, required this.onPersonSelected});
 
-  final ValueChanged<int> onPersonSelected;
+  final ValueChanged<SharedPatient> onPersonSelected;
+
+  @override
+  State<SharedPeopleView> createState() => _SharedPeopleViewState();
+}
+
+class _SharedPeopleViewState extends State<SharedPeopleView> {
   static const _ink = Color(0xFF164E50);
   static const _primary = Color(0xFF008C91);
   static const _muted = Color(0xFF657E80);
 
-  Widget _person(
-    int index,
-    String name,
-    String initials,
-    String relation,
-    String latest,
-  ) {
+  List<SharedPatient> _people = const [];
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final people = await Api.instance.sharing.sharedWithMe();
+      if (mounted) setState(() => _people = people);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  static String _shares(SharedPatient person) => [
+    if (person.shareVitals) 'chỉ số',
+    if (person.shareAlerts) 'cảnh báo',
+    if (person.shareAppointments) 'lịch hẹn',
+  ].join(', ');
+
+  Widget _person(SharedPatient person) {
+    final name = person.fullName;
+    final initials = person.initials;
+    final relation = 'Chia sẻ ${_shares(person)}';
+    final latest = person.expiresAt == null
+        ? 'Không giới hạn thời gian'
+        : 'Đến ${fullDate(person.expiresAt!)}';
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
@@ -25,7 +65,7 @@ class SharedPeopleView extends StatelessWidget {
           side: const BorderSide(color: Color(0xFFE0ECE9)),
         ),
         child: InkWell(
-          onTap: () => onPersonSelected(index),
+          onTap: () => widget.onPersonSelected(person),
           child: Padding(
             padding: const EdgeInsets.all(18),
             child: Row(
@@ -100,39 +140,34 @@ class SharedPeopleView extends StatelessWidget {
     ),
     child: SafeArea(
       bottom: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 24, 18, 28),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Thông tin sức khỏe được chia sẻ với bạn.',
-                  style: TextStyle(fontSize: 15, height: 1.5, color: _ink),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Dữ liệu mẫu',
-                  style: TextStyle(fontSize: 12, color: _muted),
-                ),
-                const SizedBox(height: 18),
-                _person(
-                  0,
-                  'Alex Morgan',
-                  'AM',
-                  'Cha/mẹ',
-                  'Lần đo hôm nay, 09:41',
-                ),
-                _person(
-                  1,
-                  'Casey Morgan',
-                  'CM',
-                  'Người thân',
-                  'Lần đo gần nhất: Hôm qua',
-                ),
-              ],
+      child: RefreshIndicator(
+        onRefresh: _load,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 28),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Thông tin sức khỏe được chia sẻ với bạn.',
+                    style: TextStyle(fontSize: 15, height: 1.5, color: _ink),
+                  ),
+                  const SizedBox(height: 18),
+                  if (_loading) const LoadingBlock(),
+                  if (!_loading && _error != null)
+                    ErrorBlock(error: _error!, onRetry: _load),
+                  if (!_loading && _error == null && _people.isEmpty)
+                    const EmptyBlock(
+                      icon: Icons.people_outline_rounded,
+                      message: 'Chưa có ai chia sẻ sức khỏe với bạn.',
+                    ),
+                  if (!_loading)
+                    for (final person in _people) _person(person),
+                ],
+              ),
             ),
           ),
         ),

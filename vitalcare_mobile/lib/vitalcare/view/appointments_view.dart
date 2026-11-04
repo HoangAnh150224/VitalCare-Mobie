@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import '../api/api.dart';
 import 'appointment_detail_screen.dart';
-import 'exam_registration_screen.dart';
+import 'common.dart';
 
 class AppointmentsView extends StatefulWidget {
-  const AppointmentsView({super.key, this.registrations = const []});
-  final List<ExamRegistration> registrations;
+  const AppointmentsView({super.key});
 
   @override
   State<AppointmentsView> createState() => _AppointmentsViewState();
@@ -16,19 +16,60 @@ class _AppointmentsViewState extends State<AppointmentsView> {
   static const _muted = Color(0xFF657E80);
   bool _past = false;
   late final DateTime _today = DateTime.now();
+  List<Appointment> _appointments = const [];
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await Api.instance.appointments.list();
+      if (mounted) setState(() => _appointments = list);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   String _date(DateTime date) =>
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
 
-  Widget _appointment(
-    String doctor,
-    int dayOffset,
-    String time,
-    String status,
-    bool pending,
-  ) {
-    final date = DateTime(_today.year, _today.month, _today.day + dayOffset);
-    final color = pending ? const Color(0xFF9A6A18) : _primary;
+  Future<void> _openDetail(Appointment appointment) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => AppointmentDetailScreen(appointment: appointment),
+      ),
+    );
+    if (changed == true && mounted) _load();
+  }
+
+  Widget _appointment(Appointment appointment) {
+    final date = appointment.date;
+    final pending = appointment.status == AppointmentStatus.scheduled;
+    final ended =
+        appointment.status == AppointmentStatus.cancelled ||
+        appointment.status == AppointmentStatus.noShow;
+    final color = pending
+        ? const Color(0xFF9A6A18)
+        : ended
+        ? const Color(0xFFB24C4C)
+        : _primary;
+    final time = appointment.startTime == null
+        ? 'Số ${appointment.queueLabel}'
+        : 'Số ${appointment.queueLabel} · dự kiến ${appointment.startTime}';
+    final who = appointment.patientName == null
+        ? ''
+        : ' · ${appointment.patientName}';
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
@@ -39,17 +80,7 @@ class _AppointmentsViewState extends State<AppointmentsView> {
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => AppointmentDetailScreen(
-                doctor: doctor,
-                date: date,
-                time: time,
-                status: status,
-                isPast: _past,
-              ),
-            ),
-          ),
+          onTap: () => _openDetail(appointment),
           child: Padding(
             padding: const EdgeInsets.all(18),
             child: Row(
@@ -73,7 +104,7 @@ class _AppointmentsViewState extends State<AppointmentsView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        doctor,
+                        appointment.doctorName ?? 'Bác sĩ',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -81,9 +112,9 @@ class _AppointmentsViewState extends State<AppointmentsView> {
                         ),
                       ),
                       const SizedBox(height: 5),
-                      const Text(
-                        'Phòng khám Trung Tâm',
-                        style: TextStyle(
+                      Text(
+                        '${appointment.clinicName ?? 'Phòng khám'}$who',
+                        style: const TextStyle(
                           fontSize: 13,
                           height: 1.4,
                           color: _muted,
@@ -91,7 +122,7 @@ class _AppointmentsViewState extends State<AppointmentsView> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '${_date(date)} · $time',
+                        date == null ? time : '${_date(date)} · $time',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -107,11 +138,13 @@ class _AppointmentsViewState extends State<AppointmentsView> {
                         decoration: BoxDecoration(
                           color: pending
                               ? const Color(0xFFFFF5DE)
+                              : ended
+                              ? const Color(0xFFFBECEC)
                               : const Color(0xFFE8F5EF),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          status,
+                          appointment.status.label,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -135,6 +168,32 @@ class _AppointmentsViewState extends State<AppointmentsView> {
     );
   }
 
+  List<Widget> _list() {
+    if (_loading) return const [LoadingBlock()];
+    if (_error != null) return [ErrorBlock(error: _error!, onRetry: _load)];
+    final upcoming = _appointments.where((a) => a.isUpcoming(_today)).toList()
+      // The nearest visit first.
+      ..sort(
+        (a, b) => (a.date ?? _today).compareTo(b.date ?? _today) != 0
+            ? (a.date ?? _today).compareTo(b.date ?? _today)
+            : (a.queueNumber ?? 0).compareTo(b.queueNumber ?? 0),
+      );
+    final shown = _past
+        ? _appointments.where((a) => !a.isUpcoming(_today)).toList()
+        : upcoming;
+    if (shown.isEmpty) {
+      return [
+        EmptyBlock(
+          icon: Icons.calendar_month_outlined,
+          message: _past
+              ? 'Chưa có lịch hẹn nào đã qua.'
+              : 'Bạn chưa có lịch hẹn sắp tới.',
+        ),
+      ];
+    }
+    return [for (final appointment in shown) _appointment(appointment)];
+  }
+
   @override
   Widget build(BuildContext context) => Container(
     decoration: const BoxDecoration(
@@ -147,110 +206,70 @@ class _AppointmentsViewState extends State<AppointmentsView> {
     ),
     child: SafeArea(
       bottom: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 24, 18, 28),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Sắp tới')),
-                    ButtonSegment(value: true, label: Text('Đã qua')),
-                  ],
-                  selected: {_past},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (value) =>
-                      setState(() => _past = value.single),
-                  style: ButtonStyle(
-                    minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
-                    backgroundColor: WidgetStateProperty.resolveWith(
-                      (s) => s.contains(WidgetState.selected)
-                          ? _primary
-                          : Colors.white,
-                    ),
-                    foregroundColor: WidgetStateProperty.resolveWith(
-                      (s) => s.contains(WidgetState.selected)
-                          ? Colors.white
-                          : _ink,
-                    ),
-                    side: const WidgetStatePropertyAll(
-                      BorderSide(color: Color(0xFFCCDADC)),
-                    ),
-                    textStyle: const WidgetStatePropertyAll(
-                      TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _past ? 'Lịch hẹn đã qua' : 'Lịch hẹn sắp tới',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: _ink,
-                        ),
+      child: RefreshIndicator(
+        onRefresh: _load,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 28),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('Sắp tới')),
+                      ButtonSegment(value: true, label: Text('Đã qua')),
+                    ],
+                    selected: {_past},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (value) =>
+                        setState(() => _past = value.single),
+                    style: ButtonStyle(
+                      minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+                      backgroundColor: WidgetStateProperty.resolveWith(
+                        (s) => s.contains(WidgetState.selected)
+                            ? _primary
+                            : Colors.white,
+                      ),
+                      foregroundColor: WidgetStateProperty.resolveWith(
+                        (s) => s.contains(WidgetState.selected)
+                            ? Colors.white
+                            : _ink,
+                      ),
+                      side: const WidgetStatePropertyAll(
+                        BorderSide(color: Color(0xFFCCDADC)),
+                      ),
+                      textStyle: const WidgetStatePropertyAll(
+                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                       ),
                     ),
-                    const Text(
-                      'Dữ liệu mẫu',
-                      style: TextStyle(fontSize: 12, color: _muted),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                if (!_past) ...[
-                  for (final registration in widget.registrations)
-                    Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 14),
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              registration.specialty,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: _ink,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text('Người khám: ${registration.name}'),
-                            Text('Số điện thoại: ${registration.phone}'),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${registration.dateLabel} · ${registration.time}',
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Lịch thử nghiệm · Chưa gửi cơ sở y tế',
-                              style: TextStyle(color: _muted),
-                            ),
-                          ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _past ? 'Lịch hẹn đã qua' : 'Lịch hẹn sắp tới',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: _ink,
+                          ),
                         ),
                       ),
-                    ),
-                  _appointment('BS. Taylor', 2, '10:30', 'Đã xác nhận', false),
-                  _appointment('BS. Jordan', 9, '09:00', 'Chờ xác nhận', true),
-                ] else ...[
-                  _appointment('BS. Taylor', -7, '10:30', 'Đã hoàn tất', false),
-                  _appointment(
-                    'BS. Jordan',
-                    -21,
-                    '09:00',
-                    'Đã hoàn tất',
-                    false,
+                      if (!_loading && _error == null)
+                        Text(
+                          '${_past ? _appointments.where((a) => !a.isUpcoming(_today)).length : _appointments.where((a) => a.isUpcoming(_today)).length} lịch hẹn',
+                          style: const TextStyle(fontSize: 12, color: _muted),
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 14),
+                  ..._list(),
                 ],
-              ],
+              ),
             ),
           ),
         ),

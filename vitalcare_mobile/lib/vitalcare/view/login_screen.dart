@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../api/api.dart';
+import 'common.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 
@@ -12,28 +14,59 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _phone = TextEditingController();
+  final _password = TextEditingController();
   bool _showPassword = false;
   bool _rememberLogin = false;
+  bool _busy = false;
+  Map<String, String> _serverErrors = const {};
 
   static const _primary = Color(0xFF008C91);
   static const _ink = Color(0xFF164E50);
   static const _link = Color(0xFF007C80);
 
-  void _login() {
+  @override
+  void dispose() {
+    _phone.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (_busy) return;
+    setState(() => _serverErrors = const {});
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
-    );
+    setState(() => _busy = true);
+    try {
+      await Api.instance.auth.login(
+        _phone.text.replaceAll(RegExp(r'[\s().-]'), ''),
+        _password.text,
+        remember: _rememberLogin,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _serverErrors = e.fieldErrors;
+      });
+      if (e.fieldErrors.isEmpty) showError(context, e);
+    }
   }
 
   InputDecoration _decoration(
     String hint, {
     required IconData icon,
     Widget? suffix,
+    String? error,
   }) {
     return InputDecoration(
       hintText: hint,
+      errorText: error,
       hintStyle: const TextStyle(color: Color(0xFF778A91), fontSize: 15),
       filled: true,
       fillColor: Colors.white,
@@ -133,11 +166,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 10),
                             TextFormField(
+                              controller: _phone,
+                              onChanged: (_) {
+                                if (_serverErrors.isNotEmpty) {
+                                  setState(() => _serverErrors = const {});
+                                }
+                              },
                               cursorColor: _link,
                               style: const TextStyle(fontSize: 16, color: _ink),
                               decoration: _decoration(
                                 'Nhập số điện thoại',
                                 icon: Icons.phone_outlined,
+                                error: _serverErrors['phone'],
                               ),
                               keyboardType: TextInputType.phone,
                               textInputAction: TextInputAction.next,
@@ -171,11 +211,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 10),
                             TextFormField(
+                              controller: _password,
+                              onChanged: (_) {
+                                if (_serverErrors.isNotEmpty) {
+                                  setState(() => _serverErrors = const {});
+                                }
+                              },
                               cursorColor: _link,
                               style: const TextStyle(fontSize: 16, color: _ink),
                               decoration: _decoration(
                                 'Nhập mật khẩu',
                                 icon: Icons.lock_outline_rounded,
+                                error: _serverErrors['password'],
                                 suffix: IconButton(
                                   tooltip: _showPassword
                                       ? 'Ẩn mật khẩu'
@@ -252,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 24),
                             FilledButton(
-                              onPressed: _login,
+                              onPressed: _busy ? null : _login,
                               style: FilledButton.styleFrom(
                                 backgroundColor: _primary,
                                 foregroundColor: Colors.white,
@@ -263,18 +310,32 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
+                                  if (_busy) ...[
+                                    const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                  ],
+                                  const Text(
                                     'Đăng nhập',
                                     style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  SizedBox(width: 12),
-                                  Icon(Icons.arrow_forward_rounded, size: 20),
+                                  const SizedBox(width: 12),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 20,
+                                  ),
                                 ],
                               ),
                             ),

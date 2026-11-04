@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../api/api.dart';
+import 'common.dart';
 import 'verification_pin_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -15,20 +17,33 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   static const _primary = Color(0xFF008C91);
   static const _ink = Color(0xFF164E50);
   static const _link = Color(0xFF007C80);
+  bool _busy = false;
+  String? _phoneError;
 
-  void _sendRecoverySms() {
+  Future<void> _sendRecoverySms() async {
+    if (_busy) return;
+    setState(() => _phoneError = null);
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VerificationPinScreen(
-          phoneNumber: _phoneController.text.replaceAll(
-            RegExp(r'[\s().-]'),
-            '',
-          ),
+    final phone = _phoneController.text.replaceAll(RegExp(r'[\s().-]'), '');
+    setState(() => _busy = true);
+    try {
+      await Api.instance.auth.requestResetCode(phone);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => VerificationPinScreen(phoneNumber: phone),
         ),
-      ),
-    );
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _phoneError = e.field('phone');
+      });
+      if (_phoneError == null) showError(context, e);
+    }
   }
 
   @override
@@ -141,6 +156,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           const SizedBox(height: 10),
                           TextFormField(
                             controller: _phoneController,
+                            onChanged: (_) {
+                              if (_phoneError != null) {
+                                setState(() => _phoneError = null);
+                              }
+                            },
                             keyboardType: TextInputType.phone,
                             textInputAction: TextInputAction.done,
                             autofillHints: const [
@@ -151,6 +171,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             cursorColor: _link,
                             style: const TextStyle(fontSize: 16, color: _ink),
                             decoration: InputDecoration(
+                              errorText: _phoneError,
+                              errorMaxLines: 3,
                               hintText: 'Nhập số điện thoại',
                               hintStyle: const TextStyle(
                                 color: Color(0xFF597677),
@@ -205,7 +227,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                           const SizedBox(height: 28),
                           FilledButton(
-                            onPressed: _sendRecoverySms,
+                            onPressed: _busy ? null : _sendRecoverySms,
                             style: FilledButton.styleFrom(
                               backgroundColor: _primary,
                               elevation: 0,
@@ -220,10 +242,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            child: const Text(
-                              'Gửi mã xác nhận qua SMS',
+                            child: Text(
+                              _busy
+                                  ? 'Đang gửi mã...'
+                                  : 'Gửi mã xác nhận qua SMS',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
                               ),

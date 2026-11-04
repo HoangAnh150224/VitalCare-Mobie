@@ -1,15 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../api/api.dart';
+import 'common.dart';
 import 'measuring_screen.dart';
 
-class MeasurementScreen extends StatelessWidget {
+class MeasurementScreen extends StatefulWidget {
   const MeasurementScreen({super.key});
 
+  @override
+  State<MeasurementScreen> createState() => _MeasurementScreenState();
+}
+
+/// The device card shows the band assigned to the patient (`/my_devices`).
+class _MeasurementScreenState extends State<MeasurementScreen> {
   static const _primary = Color(0xFF008C91);
   static const _ink = Color(0xFF164E50);
   static const _muted = Color(0xFF657E80);
 
-  void _startMeasurement(BuildContext context) {
+  MyDevice? _device;
+  bool _loading = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final devices = await Api.instance.devices.list();
+      if (!mounted) return;
+      setState(
+        () => _device =
+            devices.where((d) => d.pairedWithMe).firstOrNull ??
+            devices.firstOrNull,
+      );
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String get _deviceName {
+    final device = _device;
+    if (device == null) return 'Thiết bị VitalCare';
+    return device.model == null || device.model!.isEmpty
+        ? device.deviceCode
+        : '${device.model} · ${device.deviceCode}';
+  }
+
+  String get _deviceStatus {
+    if (_loading) return 'Đang tải thông tin thiết bị...';
+    if (_error != null) return errorText(_error!);
+    final device = _device;
+    if (device == null) return 'Chưa được giao thiết bị';
+    final seen = device.lastSeenAt == null
+        ? ''
+        : ' · ${ago(device.lastSeenAt!)}';
+    return '${device.online ? 'Đang kết nối' : 'Mất kết nối'}$seen';
+  }
+
+  String get _readiness {
+    final device = _device;
+    if (_loading) return 'Đang kiểm tra thiết bị.';
+    if (device == null) {
+      return 'Bạn chưa được phòng khám giao thiết bị đo.';
+    }
+    return device.online
+        ? 'Bạn đã sẵn sàng đo.'
+        : 'Thiết bị đang mất kết nối. Hãy đeo thiết bị và kiểm tra pin.';
+  }
+
+  void _startMeasurement() {
     Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const MeasuringScreen()));
@@ -162,45 +230,50 @@ class MeasurementScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 14),
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Thiết bị VitalCare',
-                                        style: TextStyle(
+                                        _deviceName,
+                                        style: const TextStyle(
                                           fontSize: 17,
                                           fontWeight: FontWeight.w700,
                                           color: _ink,
                                         ),
                                       ),
-                                      SizedBox(height: 6),
-                                      Text(
-                                        'Đã kết nối · Trạng thái mẫu',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: _primary,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.battery_5_bar_rounded,
-                                            size: 18,
+                                      const SizedBox(height: 6),
+                                      GestureDetector(
+                                        onTap: _error == null ? null : _load,
+                                        child: Text(
+                                          _deviceStatus,
+                                          style: const TextStyle(
+                                            fontSize: 12,
                                             color: _primary,
                                           ),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Pin 82%',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: _muted,
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
+                                      if (_device?.batteryLevel != null) ...[
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.battery_5_bar_rounded,
+                                              size: 18,
+                                              color: _primary,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Pin ${_device!.batteryLevel}%',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: _muted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -213,18 +286,23 @@ class MeasurementScreen extends StatelessWidget {
                                 color: Color(0xFFE3EEEB),
                               ),
                             ),
-                            const Row(
+                            Row(
                               children: [
                                 Icon(
-                                  Icons.check_circle_outline_rounded,
+                                  _device?.online == true
+                                      ? Icons.check_circle_outline_rounded
+                                      : Icons.info_outline_rounded,
                                   color: _primary,
                                   size: 19,
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Bạn đã sẵn sàng đo.',
-                                    style: TextStyle(fontSize: 14, color: _ink),
+                                    _readiness,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: _ink,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -291,7 +369,7 @@ class MeasurementScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
-                        onPressed: () => _startMeasurement(context),
+                        onPressed: _startMeasurement,
                         style: FilledButton.styleFrom(
                           backgroundColor: _primary,
                           foregroundColor: Colors.white,

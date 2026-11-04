@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../api/api.dart';
+import 'common.dart';
 import 'measurement_screen.dart';
 import 'measurement_history_screen.dart';
 import 'health_view.dart';
@@ -20,17 +22,56 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool? _registerForRelative;
-  final List<ExamRegistration> _registrations = [];
+  VitalLatest? _latest;
+  Object? _latestError;
+  bool _loadingLatest = true;
+  int _unread = 0;
+  Future<List<Profile>>? _profiles;
 
-  Future<void> _registerSelf() async {
-    final registration = await Navigator.of(context).push<ExamRegistration>(
-      MaterialPageRoute(builder: (_) => const ExamRegistrationScreen()),
-    );
-    if (!mounted || registration == null) return;
+  @override
+  void initState() {
+    super.initState();
+    _loadLatest();
+    _loadUnread();
+  }
+
+  Future<void> _loadLatest() async {
     setState(() {
-      _registrations.add(registration);
-      _selectedIndex = 2;
+      _loadingLatest = true;
+      _latestError = null;
     });
+    try {
+      final latest = await Api.instance.health.latest();
+      if (mounted) setState(() => _latest = latest);
+    } catch (e) {
+      if (mounted) setState(() => _latestError = e);
+    } finally {
+      if (mounted) setState(() => _loadingLatest = false);
+    }
+  }
+
+  Future<void> _loadUnread() async {
+    try {
+      final count = await Api.instance.notifications.unreadCount();
+      if (mounted) setState(() => _unread = count);
+    } catch (_) {
+      // The badge is a hint; the notifications screen shows any error.
+    }
+  }
+
+  /// Registers a visit for [profile], or for the account itself when null.
+  Future<void> _register([Profile? profile]) async {
+    final appointment = await Navigator.of(context).push<Appointment>(
+      MaterialPageRoute(
+        builder: (_) => ExamRegistrationScreen(profile: profile),
+      ),
+    );
+    if (!mounted || appointment == null) return;
+    setState(() => _selectedIndex = 2);
+    showNotice(
+      context,
+      'Đã đăng ký khám. Số thứ tự của bạn: ${appointment.queueLabel}.',
+    );
   }
 
   static const _primary = Color(0xFF008C91);
@@ -110,16 +151,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: _primary,
                           ),
                           onTap: () {
-                            updateSheet(() => _registerForRelative = relative);
+                            updateSheet(() {
+                              _registerForRelative = relative;
+                              if (relative) {
+                                _profiles ??= Api.instance.appointments
+                                    .profiles();
+                              }
+                            });
                             if (!relative) {
                               Navigator.pop(context);
-                              _registerSelf();
+                              _register();
                             }
                           },
                         ),
                       ),
                     ),
                   ),
+                if (_registerForRelative == true) _relatives(context),
               ],
             ),
           ),
@@ -127,6 +175,54 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  /// The account's dependants, to register a visit for one of them.
+  Widget _relatives(BuildContext sheetContext) => FutureBuilder<List<Profile>>(
+    future: _profiles,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return const LoadingBlock();
+      }
+      if (snapshot.hasError) {
+        return ErrorBlock(
+          error: snapshot.error!,
+          onRetry: () {
+            Navigator.pop(sheetContext);
+            _profiles = null;
+          },
+        );
+      }
+      final relatives = snapshot.data!.where((p) => !p.self).toList();
+      if (relatives.isEmpty) {
+        return const EmptyBlock(
+          icon: Icons.family_restroom,
+          message:
+              'Bạn chưa có hồ sơ người thân. Hãy thêm hồ sơ người thân trên trang web VitalCare.',
+        );
+      }
+      return Column(
+        children: [
+          for (final relative in relatives)
+            ListTile(
+              leading: const Icon(Icons.person_outline, color: _primary),
+              title: Text(
+                relative.fullName,
+                style: const TextStyle(
+                  color: _ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(relative.relationshipLabel),
+              trailing: const Icon(Icons.chevron_right, color: _muted),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _register(relative);
+              },
+            ),
+        ],
+      );
+    },
+  );
 
   void _open(Widget page) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
@@ -217,160 +313,177 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  String get _latestStatus {
+    if (_loadingLatest) return 'Đang tải...';
+    if (_latestError != null) return 'Không tải được · Chạm để thử lại';
+    final at = _latest?.lastMeasuredAt;
+    return at == null ? 'Chưa có dữ liệu' : 'Cập nhật ${relativeTime(at)}';
+  }
+
   Widget _home() {
+    final latest = _latest;
     return SafeArea(
       bottom: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    Text(
-                      'Chỉ số sức khỏe',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: _ink,
+      child: RefreshIndicator(
+        onRefresh: () => Future.wait([_loadLatest(), _loadUnread()]),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      const Text(
+                        'Chỉ số sức khỏe',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: _ink,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Dữ liệu mẫu',
-                      style: TextStyle(fontSize: 12, color: _muted),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cards = [
-                      _metric(
-                        'SpO₂',
-                        '98',
-                        '%',
-                        Icons.water_drop_outlined,
-                        const Color(0xFF008C91),
+                      GestureDetector(
+                        onTap: _latestError == null ? null : _loadLatest,
+                        child: Text(
+                          _latestStatus,
+                          style: const TextStyle(fontSize: 12, color: _muted),
+                        ),
                       ),
-                      _metric(
-                        'Nhịp tim',
-                        '72',
-                        'bpm',
-                        Icons.favorite_outline,
-                        const Color(0xFFE56B7A),
-                      ),
-                      _metric(
-                        'Nhiệt độ da',
-                        '33,4',
-                        '°C',
-                        Icons.thermostat_outlined,
-                        const Color(0xFFE4A03B),
-                      ),
-                    ];
-                    final stacked =
-                        constraints.maxWidth < 320 ||
-                        MediaQuery.textScalerOf(context).scale(14) > 19;
-                    return Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        for (final card in cards)
-                          SizedBox(
-                            width: stacked
-                                ? constraints.maxWidth
-                                : (constraints.maxWidth - 20) / 3,
-                            child: card,
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 26),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final actions = [
-                      _action(
-                        'Đo sức khỏe',
-                        Icons.monitor_heart_outlined,
-                        () => _open(const MeasurementScreen()),
-                        filled: true,
-                      ),
-                      _action(
-                        'Đăng ký khám',
-                        Icons.calendar_month_outlined,
-                        _showRegistrationOptions,
-                        filled: true,
-                      ),
-                      _action(
-                        'Hồ sơ sức khỏe',
-                        Icons.assignment_outlined,
-                        () => _openView('Sức khỏe', const HealthView()),
-                      ),
-                      _action(
-                        'Lịch sử đo',
-                        Icons.history_rounded,
-                        () => _open(const MeasurementHistoryScreen()),
-                      ),
-                      _action(
-                        'Tin nhắn',
-                        Icons.chat_bubble_outline_rounded,
-                        () => _openView('Tin nhắn', const MessagesView()),
-                      ),
-                      _action(
-                        'Hướng dẫn sơ cứu',
-                        Icons.medical_services_outlined,
-                        () => _open(const FirstAidScreen()),
-                      ),
-                    ];
-                    final singleColumn =
-                        constraints.maxWidth < 320 ||
-                        MediaQuery.textScalerOf(context).scale(14) > 19;
-                    return Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        for (final action in actions)
-                          SizedBox(
-                            width: singleColumn
-                                ? constraints.maxWidth
-                                : (constraints.maxWidth - 12) / 2,
-                            child: action,
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 28),
-                const Text(
-                  'Chăm sóc sức khỏe',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
+                    ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                _careCard(
-                  Icons.insights_rounded,
-                  'Theo dõi sức khỏe',
-                  'Xem tổng quan và diễn biến các chỉ số của bạn.',
-                  () => _openView('Sức khỏe', const HealthView()),
-                ),
-                const SizedBox(height: 12),
-                _careCard(
-                  Icons.calendar_month_outlined,
-                  'Lịch hẹn của bạn',
-                  'Xem lịch khám và thông tin cuộc hẹn.',
-                  () => setState(() => _selectedIndex = 2),
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cards = [
+                        _metric(
+                          'SpO₂',
+                          latest?.spo2 == null ? '--' : decimal(latest!.spo2!),
+                          '%',
+                          Icons.water_drop_outlined,
+                          const Color(0xFF008C91),
+                        ),
+                        _metric(
+                          'Nhịp tim',
+                          latest?.heartRate?.toString() ?? '--',
+                          'bpm',
+                          Icons.favorite_outline,
+                          const Color(0xFFE56B7A),
+                        ),
+                        _metric(
+                          'Nhiệt độ da',
+                          latest?.skinTemperature == null
+                              ? '--'
+                              : decimal(latest!.skinTemperature!),
+                          '°C',
+                          Icons.thermostat_outlined,
+                          const Color(0xFFE4A03B),
+                        ),
+                      ];
+                      final stacked =
+                          constraints.maxWidth < 320 ||
+                          MediaQuery.textScalerOf(context).scale(14) > 19;
+                      return Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (final card in cards)
+                            SizedBox(
+                              width: stacked
+                                  ? constraints.maxWidth
+                                  : (constraints.maxWidth - 20) / 3,
+                              child: card,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 26),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final actions = [
+                        _action(
+                          'Đo sức khỏe',
+                          Icons.monitor_heart_outlined,
+                          () => _open(const MeasurementScreen()),
+                          filled: true,
+                        ),
+                        _action(
+                          'Đăng ký khám',
+                          Icons.calendar_month_outlined,
+                          _showRegistrationOptions,
+                          filled: true,
+                        ),
+                        _action(
+                          'Hồ sơ sức khỏe',
+                          Icons.assignment_outlined,
+                          () => _openView('Sức khỏe', const HealthView()),
+                        ),
+                        _action(
+                          'Lịch sử đo',
+                          Icons.history_rounded,
+                          () => _open(const MeasurementHistoryScreen()),
+                        ),
+                        _action(
+                          'Tin nhắn',
+                          Icons.chat_bubble_outline_rounded,
+                          () => _openView('Tin nhắn', const MessagesView()),
+                        ),
+                        _action(
+                          'Hướng dẫn sơ cứu',
+                          Icons.medical_services_outlined,
+                          () => _open(const FirstAidScreen()),
+                        ),
+                      ];
+                      final singleColumn =
+                          constraints.maxWidth < 320 ||
+                          MediaQuery.textScalerOf(context).scale(14) > 19;
+                      return Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          for (final action in actions)
+                            SizedBox(
+                              width: singleColumn
+                                  ? constraints.maxWidth
+                                  : (constraints.maxWidth - 12) / 2,
+                              child: action,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Chăm sóc sức khỏe',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: _ink,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _careCard(
+                    Icons.insights_rounded,
+                    'Theo dõi sức khỏe',
+                    'Xem tổng quan và diễn biến các chỉ số của bạn.',
+                    () => _openView('Sức khỏe', const HealthView()),
+                  ),
+                  const SizedBox(height: 12),
+                  _careCard(
+                    Icons.calendar_month_outlined,
+                    'Lịch hẹn của bạn',
+                    'Xem lịch khám và thông tin cuộc hẹn.',
+                    () => setState(() => _selectedIndex = 2),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -449,9 +562,13 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             IconButton(
               tooltip: 'Thông báo',
-              icon: const Icon(
-                Icons.notifications_none_rounded,
-                color: _primary,
+              icon: Badge(
+                isLabelVisible: _unread > 0,
+                label: Text(_unread > 99 ? '99+' : '$_unread'),
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: _primary,
+                ),
               ),
               onPressed: () async {
                 final tab = await Navigator.of(context).push<int>(
@@ -459,6 +576,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (_) => const NotificationsScreen(),
                   ),
                 );
+                _loadUnread();
                 if (!mounted || tab == null || tab < 0 || tab > 4) return;
                 setState(() => _selectedIndex = tab);
               },
@@ -480,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         body: switch (_selectedIndex) {
           1 => const HealthView(),
-          2 => AppointmentsView(registrations: _registrations),
+          2 => const AppointmentsView(),
           3 => const MessagesView(),
           4 => const ProfileView(),
           _ => Container(
