@@ -122,6 +122,24 @@ const List<(String, String)> _messages = [
   ('Refresh token is required', sessionExpiredText),
   // Phone numbers, codes, passwords (shared/api/registration.ts on the web)
   (
+    'Phone number has too few digits',
+    'Số điện thoại chưa đủ số. Vui lòng nhập số điện thoại gồm 10 chữ số hoặc dạng +84 kèm 9 chữ số.',
+  ),
+  (
+    'Phone number has too many digits',
+    'Số điện thoại thừa chữ số. Vui lòng nhập số điện thoại gồm 10 chữ số hoặc dạng +84 kèm 9 chữ số.',
+  ),
+  (
+    'Phone number may only contain digits',
+    'Số điện thoại sai định dạng. Vui lòng nhập đúng định dạng, ví dụ: 0901234567 hoặc +84901234567.',
+  ),
+  (
+    'Full name may only contain letters',
+    'Họ và tên chỉ được chứa chữ cái và khoảng trắng; không được chứa số hoặc ký tự đặc biệt.',
+  ),
+  ('Password cannot contain only spaces', 'Mật khẩu không được chỉ chứa khoảng trắng.'),
+  ('Full name must be at most', 'Họ và tên không được vượt quá 255 ký tự.'),
+  (
     'Phone number must be a Vietnamese number',
     'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam, ví dụ: 0901234567 hoặc +84901234567.',
   ),
