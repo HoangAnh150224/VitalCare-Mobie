@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api.dart';
 import 'common.dart';
@@ -24,6 +25,11 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   AppointmentQueue? _queue;
   VisitResult? _result;
   String? _clinicPhone;
+  ({int id, bool paid, bool online})? _bill;
+  bool _onlineOnly = false;
+
+  /// UC-01 step 4: chose to pay at the desk on the day (the fee stays unpaid).
+  bool _payAtDesk = false;
   bool _loading = true;
   bool _busy = false;
   bool _changed = false;
@@ -51,6 +57,18 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             .queue(appointment.id)
             .then((q) => _queue = q)
             .catchError((Object _) => const AppointmentQueue()),
+      // The fee is paid before the queue (BF-02): online now, or at the desk on the day.
+      if (appointment.status == AppointmentStatus.booked ||
+          appointment.status == AppointmentStatus.checkedIn) ...[
+        api
+            .examBill(appointment.id)
+            .then((bill) => _bill = bill)
+            .catchError((Object _) => null),
+        api
+            .onlinePaymentRequired()
+            .then((required) => _onlineOnly = required)
+            .catchError((Object _) => false),
+      ],
       if (appointment.status == AppointmentStatus.completed)
         api
             .result(appointment.id)
@@ -72,6 +90,80 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   void _notice(String message) => showNotice(context, message);
+
+  /// VNPay in the browser; back in the app, "Tải lại" shows whether it went through.
+  Future<void> _payOnline() async {
+    final bill = _bill;
+    if (bill == null) return;
+    setState(() => _busy = true);
+    try {
+      final url = await Api.instance.appointments.vnpayUrl(bill.id);
+      final opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        _notice('Không mở được trang thanh toán. Vui lòng thử lại.');
+      }
+    } catch (e) {
+      // A refused or failed payment can be tried again, or paid at the desk (UC-01 A2).
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _paymentSection(ButtonStyle buttonStyle) {
+    final bill = _bill;
+    if (bill == null || bill.paid) return const SizedBox.shrink();
+    final deskAllowed = !_onlineOnly;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 12),
+        Text(
+          _onlineOnly
+              ? 'Tài khoản đã 3 lần không đến khám nên cần thanh toán phí khám online trước khi tới khám.'
+              : _payAtDesk
+              ? 'Bạn sẽ trả phí khám tại quầy khi tới khám. Lượt khám được giữ đến hết giờ tiếp nhận của ngày khám.'
+              : 'Chọn cách thanh toán phí khám: online ngay, hoặc tại quầy khi tới khám.',
+          style: const TextStyle(fontSize: 13, height: 1.5, color: _muted),
+        ),
+        const SizedBox(height: 10),
+        if (bill.online)
+          FilledButton.icon(
+            onPressed: _busy ? null : _payOnline,
+            style: FilledButton.styleFrom(
+              backgroundColor: _primary,
+              minimumSize: const Size.fromHeight(54),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            icon: const Icon(Icons.credit_card_rounded, size: 20),
+            label: const Text('Thanh toán online (VNPay)'),
+          ),
+        if (deskAllowed && !_payAtDesk) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _payAtDesk = true),
+            style: buttonStyle,
+            icon: const Icon(Icons.storefront_outlined, size: 20),
+            label: const Text('Trả tại quầy'),
+          ),
+        ],
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () {
+                  setState(() => _loading = true);
+                  _load();
+                },
+          child: const Text('Đã thanh toán? Tải lại'),
+        ),
+      ],
+    );
+  }
 
   Future<void> _contact() async {
     final phone = _clinicPhone;
@@ -308,6 +400,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                               '$date · Số ${appointment.queueLabel}$expected',
                             ),
                             _field('Trạng thái', appointment.status.label),
+                            if (_bill != null)
+                              _field(
+                                'Phí khám',
+                                _bill!.paid
+                                    ? 'Đã thanh toán'
+                                    : 'Chưa thanh toán',
+                              ),
                             if (_queueText != null)
                               _field('Hàng chờ hôm nay', _queueText!),
                             if (appointment.examRoom != null)
@@ -331,6 +430,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           ],
                         ),
                       ),
+                      _paymentSection(buttonStyle),
                       const SizedBox(height: 22),
                       OutlinedButton.icon(
                         onPressed: _contact,

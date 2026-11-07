@@ -100,6 +100,39 @@ class AppointmentService {
           )
           .toList();
 
+  /// The visit's examination bill as the portal shows it: its id, whether it
+  /// is paid, and whether it can be paid online (VNPay). Null when it has none.
+  Future<({int id, bool paid, bool online})?> examBill(
+    int appointmentId,
+  ) async {
+    for (final own in jsonList(
+      await _client.get('/my_appointments/$appointmentId/invoice/all'),
+    )) {
+      final invoice = _json(own['invoice']);
+      if (invoice['kind'] == 'service' || invoice['status'] == 'cancelled') {
+        continue;
+      }
+      return (
+        id: (invoice['id'] as num).toInt(),
+        paid: invoice['status'] == 'paid',
+        online: own['onlinePayment'] == true,
+      );
+    }
+    return null;
+  }
+
+  /// BR-11: after three no-shows the account pays online; the desk is not offered.
+  Future<bool> onlinePaymentRequired() async =>
+      _json(
+        await _client.get('/my_appointments/payment-rules'),
+      )['onlinePaymentRequired'] ==
+      true;
+
+  /// Where to pay [invoiceId] with VNPay; the API sends the browser back to the portal.
+  Future<String> vnpayUrl(int invoiceId) async =>
+      _json(await _client.post('/my_invoices/$invoiceId/vnpay'))['url']
+          as String;
+
   static Json _json(Object? body) =>
       body is Map ? body.cast<String, dynamic>() : const {};
 }

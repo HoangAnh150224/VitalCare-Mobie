@@ -11,6 +11,7 @@ import 'messages_view.dart';
 import 'profile_view.dart';
 import 'first_aid_screen.dart';
 import 'exam_registration_screen.dart';
+import 'appointment_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -71,6 +72,12 @@ class _HomeScreenState extends State<HomeScreen> {
     showNotice(
       context,
       'Đã đăng ký khám. Số thứ tự của bạn: ${appointment.queueLabel}.',
+    );
+    // UC-01 steps 4–8: the confirmation, where the fee is paid online or left for the desk.
+    await Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => AppointmentDetailScreen(appointment: appointment),
+      ),
     );
   }
 
