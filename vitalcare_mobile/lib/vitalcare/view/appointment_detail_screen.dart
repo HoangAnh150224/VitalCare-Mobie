@@ -59,7 +59,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             .catchError((Object _) => const AppointmentQueue()),
       // The fee is paid before the queue (BF-02): online now, or at the desk on the day.
       if (appointment.status == AppointmentStatus.booked ||
-          appointment.status == AppointmentStatus.checkedIn) ...[
+          appointment.status == AppointmentStatus.checkedIn ||
+          appointment.status == AppointmentStatus.readyForExamination) ...[
         api
             .examBill(appointment.id)
             .then((bill) => _bill = bill)

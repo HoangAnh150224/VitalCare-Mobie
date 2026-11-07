@@ -104,8 +104,13 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
           !doctors.any(
             (d) => d.day != null && d.day!.working && d.day!.bookable,
           );
+      // The suggestions are a help: without them the full day is still said.
       final openDays = full
-          ? await Api.instance.appointments.openDays(clinicId, from: date)
+          ? await Api.instance.appointments
+                .openDays(clinicId, from: date)
+                .catchError(
+                  (Object _) => const <({DateTime date, int remaining})>[],
+                )
           : const <({DateTime date, int remaining})>[];
       if (!mounted || clinicId != _clinicId || date != _date) return;
       setState(() {
