@@ -4,6 +4,7 @@ import '../api/api.dart';
 import 'common.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
+import 'sign_up_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -337,6 +338,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                     size: 20,
                                   ),
                                 ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const SignUpScreen(),
+                                ),
+                              ),
+                              child: const Text(
+                                'Chưa có tài khoản? Đăng ký',
+                                style: TextStyle(
+                                  color: _link,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],

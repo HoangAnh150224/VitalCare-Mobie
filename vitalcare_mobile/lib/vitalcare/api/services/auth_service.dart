@@ -86,6 +86,45 @@ class AuthService {
     }
   }
 
+  /// Texts a registration code; a number that already has an account is
+  /// refused first (UC-04 D2).
+  Future<void> requestRegistrationCode(String phone) =>
+      _client.post('/auth/register/otp', body: {'phone': phone}, auth: false);
+
+  /// Checks the registration code without spending it and answers with the
+  /// profiles the clinic already has with the number, masked (BR-14), for the
+  /// person to pick their own. A wrong code is a field error on `otp`.
+  Future<List<ProfileMatch>> checkRegistrationCode(
+    String phone,
+    String otp,
+  ) async => jsonList(
+    await _client.post(
+      '/auth/register/otp/check',
+      body: {'phone': phone, 'otp': otp},
+      auth: false,
+    ),
+  ).map(ProfileMatch.fromJson).toList();
+
+  /// Creates the account with the code; [claimProfileId] is the picked
+  /// profile, null for "not me". Signs nobody in here: the person signs in next.
+  Future<void> register({
+    required String phone,
+    required String otp,
+    required String fullName,
+    required String password,
+    int? claimProfileId,
+  }) => _client.post(
+    '/auth/register',
+    body: {
+      'phone': phone,
+      'otp': otp,
+      'fullName': fullName,
+      'password': password,
+      'claimProfileId': claimProfileId,
+    },
+    auth: false,
+  );
+
   /// Texts a recovery code. Answers the same whether or not the number has an account.
   Future<void> requestResetCode(String phone) => _client.post(
     '/auth/password-reset/otp',

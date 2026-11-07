@@ -11,8 +11,9 @@ const _primary = Color(0xFF008C91);
 const _muted = Color(0xFF657E80);
 
 /// The message to show for any failure.
-String errorText(Object error) =>
-    error is ApiException ? error.message : 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+String errorText(Object error) => error is ApiException
+    ? error.message
+    : 'Đã có lỗi xảy ra. Vui lòng thử lại.';
 
 void showNotice(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
@@ -20,7 +21,8 @@ void showNotice(BuildContext context, String message) {
     ..showSnackBar(SnackBar(content: Text(message)));
 }
 
-void showError(BuildContext context, Object error) => showNotice(context, errorText(error));
+void showError(BuildContext context, Object error) =>
+    showNotice(context, errorText(error));
 
 class LoadingBlock extends StatelessWidget {
   const LoadingBlock({super.key});
@@ -62,7 +64,11 @@ class ErrorBlock extends StatelessWidget {
 }
 
 class EmptyBlock extends StatelessWidget {
-  const EmptyBlock({super.key, required this.message, this.icon = Icons.inbox_outlined});
+  const EmptyBlock({
+    super.key,
+    required this.message,
+    this.icon = Icons.inbox_outlined,
+  });
 
   final String message;
   final IconData icon;
@@ -110,7 +116,9 @@ String relativeTime(DateTime time) => '${relativeDay(time)} ${clockTime(time)}';
 /// A decimal with a Vietnamese comma: `33.4` → `33,4`; whole numbers stay whole.
 String decimal(double value, {int digits = 1}) {
   final whole = value == value.roundToDouble();
-  return value.toStringAsFixed(whole && digits <= 1 ? 0 : digits).replaceAll('.', ',');
+  return value
+      .toStringAsFixed(whole && digits <= 1 ? 0 : digits)
+      .replaceAll('.', ',');
 }
 
 /// How long ago, for list subtitles.
@@ -137,5 +145,7 @@ Future<void> openExternal(BuildContext context, Uri url) async {
   }
 }
 
-Future<void> callPhone(BuildContext context, String phone) =>
-    openExternal(context, Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^\d+]'), '')));
+Future<void> callPhone(BuildContext context, String phone) => openExternal(
+  context,
+  Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^\d+]'), '')),
+);

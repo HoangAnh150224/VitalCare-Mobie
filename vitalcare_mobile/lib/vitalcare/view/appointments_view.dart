@@ -104,7 +104,8 @@ class _AppointmentsViewState extends State<AppointmentsView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        appointment.doctorName ?? 'Bác sĩ: xếp khi gọi vào phòng',
+                        appointment.doctorName ??
+                            'Bác sĩ: xếp khi gọi vào phòng',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,

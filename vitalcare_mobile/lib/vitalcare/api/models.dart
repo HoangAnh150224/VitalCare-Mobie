@@ -240,6 +240,30 @@ class Doctor {
       : '$professionalTitle $fullName';
 }
 
+/// A profile the clinic already has with the number being registered, as the
+/// person registering may see it (BR-14): masked name, birth year only.
+class ProfileMatch {
+  const ProfileMatch({
+    required this.id,
+    required this.maskedName,
+    this.birthYear,
+  });
+
+  final int id;
+  final String maskedName;
+  final int? birthYear;
+
+  /// "Nguyễn V*** A – 1985".
+  String get label =>
+      birthYear == null ? maskedName : '$maskedName – $birthYear';
+
+  factory ProfileMatch.fromJson(Json json) => ProfileMatch(
+    id: _int(json['id']) ?? 0,
+    maskedName: _str(json['maskedName']) ?? '***',
+    birthYear: _int(json['birthYear']),
+  );
+}
+
 // ---- appointments ---------------------------------------------------------
 
 enum AppointmentStatus {

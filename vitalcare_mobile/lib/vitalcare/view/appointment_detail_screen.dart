@@ -262,7 +262,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  appointment.doctorName ?? 'Bác sĩ: xếp khi gọi vào phòng',
+                                  appointment.doctorName ??
+                                      'Bác sĩ: xếp khi gọi vào phòng',
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
