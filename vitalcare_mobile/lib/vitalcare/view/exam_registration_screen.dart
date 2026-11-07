@@ -29,6 +29,9 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
   String? _clinicId;
   List<Clinic> _clinics = const [];
   List<Doctor> _doctors = const [];
+
+  /// When the chosen day is full: the next days with a place left.
+  List<({DateTime date, int remaining})> _openDays = const [];
   bool _loading = true;
   bool _loadingDoctors = false;
   Object? _error;
@@ -95,7 +98,20 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
         date: _date,
       );
       if (!mounted || clinicId != _clinicId) return;
-      setState(() => _doctors = doctors);
+      final date = _date;
+      final full =
+          date != null &&
+          !doctors.any(
+            (d) => d.day != null && d.day!.working && d.day!.bookable,
+          );
+      final openDays = full
+          ? await Api.instance.appointments.openDays(clinicId, from: date)
+          : const <({DateTime date, int remaining})>[];
+      if (!mounted || clinicId != _clinicId || date != _date) return;
+      setState(() {
+        _doctors = doctors;
+        _openDays = openDays;
+      });
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -321,12 +337,36 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
           ],
           _dateField(),
           const SizedBox(height: 16),
-          if (_dayOpen == false)
+          if (_dayOpen == false) ...[
             Text(
-              'Ngày này phòng khám không có bác sĩ khám hoặc đã hết lượt. Vui lòng chọn ngày khác.',
+              _openDays.isEmpty
+                  ? 'Ngày này phòng khám không có bác sĩ khám hoặc đã hết lượt. Vui lòng chọn ngày khác.'
+                  : 'Ngày này phòng khám không có bác sĩ khám hoặc đã hết lượt. Các ngày còn lượt:',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
-            )
-          else if (_dayOpen == true)
+            ),
+            if (_openDays.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final day in _openDays)
+                    OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _date = day.date;
+                          _serverErrors = const {};
+                        });
+                        _loadDoctors();
+                      },
+                      child: Text(
+                        '${_format(day.date)} · còn ${day.remaining} lượt',
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ] else if (_dayOpen == true)
             const Text(
               'Phòng khám sẽ xếp bạn vào một bác sĩ khám trong ngày; tên bác sĩ và số khám hiện trên phiếu sau khi đăng ký.',
               style: TextStyle(color: Color(0xFF657E80), height: 1.5),

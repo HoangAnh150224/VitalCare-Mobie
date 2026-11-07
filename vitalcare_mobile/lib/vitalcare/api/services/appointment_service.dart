@@ -80,6 +80,26 @@ class AppointmentService {
         ),
       ).map(Doctor.fromJson).toList();
 
+  /// The next days from [from] with a place left at the clinic, for a day
+  /// that is full: what to pick instead. Online and walk-in visits share them.
+  Future<List<({DateTime date, int remaining})>> openDays(
+    String clinicId, {
+    required DateTime from,
+  }) async =>
+      jsonList(
+            await _client.get(
+              '/clinics/$clinicId/open-days',
+              query: {'from': isoDay(from), 'days': 5},
+            ),
+          )
+          .map(
+            (day) => (
+              date: DateTime.parse(day['date'] as String),
+              remaining: (day['remaining'] as num).toInt(),
+            ),
+          )
+          .toList();
+
   static Json _json(Object? body) =>
       body is Map ? body.cast<String, dynamic>() : const {};
 }
