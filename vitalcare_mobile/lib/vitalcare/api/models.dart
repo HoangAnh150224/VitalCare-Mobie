@@ -243,8 +243,9 @@ class Doctor {
 // ---- appointments ---------------------------------------------------------
 
 enum AppointmentStatus {
-  scheduled('Đã đăng ký'),
-  checkedIn('Đã tiếp nhận'),
+  booked('Đã đặt lịch'),
+  checkedIn('Đã check-in, chờ thanh toán'),
+  readyForExamination('Đang chờ khám'),
   inExam('Đang khám'),
   awaitingResults('Đang làm chỉ định'),
   completed('Hoàn tất'),
@@ -256,8 +257,10 @@ enum AppointmentStatus {
   final String label;
 
   static AppointmentStatus parse(Object? value) => switch (value) {
-    'scheduled' => scheduled,
+    // 'scheduled' is the name before the booking spec, from an older server.
+    'booked' || 'scheduled' => booked,
     'checked_in' => checkedIn,
+    'ready_for_examination' => readyForExamination,
     'in_exam' => inExam,
     'awaiting_results' => awaitingResults,
     'completed' => completed,
@@ -268,8 +271,9 @@ enum AppointmentStatus {
 
   /// Registered or under way: the visit has not ended.
   bool get isActive =>
-      this == scheduled ||
+      this == booked ||
       this == checkedIn ||
+      this == readyForExamination ||
       this == inExam ||
       this == awaitingResults;
 }

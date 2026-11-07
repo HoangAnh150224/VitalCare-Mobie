@@ -55,7 +55,7 @@ class _AppointmentsViewState extends State<AppointmentsView> {
 
   Widget _appointment(Appointment appointment) {
     final date = appointment.date;
-    final pending = appointment.status == AppointmentStatus.scheduled;
+    final pending = appointment.status == AppointmentStatus.booked;
     final ended =
         appointment.status == AppointmentStatus.cancelled ||
         appointment.status == AppointmentStatus.noShow;

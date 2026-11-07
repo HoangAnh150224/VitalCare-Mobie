@@ -46,7 +46,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final appointment = _appointment;
     await Future.wait([
       if (appointment.status.isActive &&
-          appointment.status != AppointmentStatus.scheduled)
+          appointment.status != AppointmentStatus.booked)
         api
             .queue(appointment.id)
             .then((q) => _queue = q)
@@ -200,7 +200,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         ? ''
         : ' · dự kiến ${appointment.startTime}';
     final result = _result;
-    final changeable = appointment.status == AppointmentStatus.scheduled;
+    final changeable = appointment.status == AppointmentStatus.booked;
     final buttonStyle = OutlinedButton.styleFrom(
       foregroundColor: _primary,
       backgroundColor: Colors.white,
