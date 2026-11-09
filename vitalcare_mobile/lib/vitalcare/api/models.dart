@@ -447,6 +447,8 @@ class VitalLatest {
     this.spo2At,
     this.skinTemperature,
     this.skinTemperatureAt,
+    this.bodyTemperature,
+    this.bodyTemperatureAt,
     this.lastMeasuredAt,
     this.readings24h = 0,
   });
@@ -458,6 +460,8 @@ class VitalLatest {
     spo2At: _instant(json['spo2At']),
     skinTemperature: _double(json['skinTemperature']),
     skinTemperatureAt: _instant(json['skinTemperatureAt']),
+    bodyTemperature: _double(json['bodyTemperature']),
+    bodyTemperatureAt: _instant(json['bodyTemperatureAt']),
     lastMeasuredAt: _instant(json['lastMeasuredAt']),
     readings24h: _int(json['readings24h']) ?? 0,
   );
@@ -468,11 +472,18 @@ class VitalLatest {
   final DateTime? spo2At;
   final double? skinTemperature;
   final DateTime? skinTemperatureAt;
+
+  /// Estimated from skin temperature by the band (°C).
+  final double? bodyTemperature;
+  final DateTime? bodyTemperatureAt;
   final DateTime? lastMeasuredAt;
   final int readings24h;
 
   bool get isEmpty =>
-      heartRate == null && spo2 == null && skinTemperature == null;
+      heartRate == null &&
+      spo2 == null &&
+      skinTemperature == null &&
+      bodyTemperature == null;
 }
 
 class VitalReading {
@@ -482,6 +493,7 @@ class VitalReading {
     this.heartRate,
     this.spo2,
     this.skinTemperature,
+    this.bodyTemperature,
     this.deviceCode,
   });
 
@@ -492,6 +504,7 @@ class VitalReading {
     heartRate: _int(json['heartRate']),
     spo2: _double(json['spo2']),
     skinTemperature: _double(json['skinTemperature']),
+    bodyTemperature: _double(json['bodyTemperature']),
     deviceCode: _str(json['deviceCode']),
   );
 
@@ -500,6 +513,7 @@ class VitalReading {
   final int? heartRate;
   final double? spo2;
   final double? skinTemperature;
+  final double? bodyTemperature;
   final String? deviceCode;
 }
 
@@ -513,6 +527,7 @@ class TrendPoint {
     this.heartRateAvg,
     this.spo2Avg,
     this.skinTemperatureAvg,
+    this.bodyTemperatureAvg,
   });
 
   factory TrendPoint.fromJson(Json json) => TrendPoint(
@@ -524,6 +539,7 @@ class TrendPoint {
     heartRateAvg: _double(json['heartRateAvg']),
     spo2Avg: _double(json['spo2Avg']),
     skinTemperatureAvg: _double(json['skinTemperatureAvg']),
+    bodyTemperatureAvg: _double(json['bodyTemperatureAvg']),
   );
 
   final DateTime at;
@@ -531,6 +547,7 @@ class TrendPoint {
   final double? heartRateAvg;
   final double? spo2Avg;
   final double? skinTemperatureAvg;
+  final double? bodyTemperatureAvg;
 
   double? value(VitalMetric metric) => switch (metric) {
     VitalMetric.spo2 => spo2Avg,
@@ -622,6 +639,7 @@ class DeviceReading {
     this.spo2,
     this.heartRate,
     this.skinTemperature,
+    this.bodyTemperature,
   });
 
   final String clientRecordId;
@@ -629,6 +647,7 @@ class DeviceReading {
   final double? spo2;
   final int? heartRate;
   final double? skinTemperature;
+  final double? bodyTemperature;
 
   Json toJson() => {
     'clientRecordId': clientRecordId,
@@ -636,6 +655,7 @@ class DeviceReading {
     'spo2': ?spo2,
     'heartRate': ?heartRate,
     'skinTemperature': ?skinTemperature,
+    'bodyTemperature': ?bodyTemperature,
   };
 }
 

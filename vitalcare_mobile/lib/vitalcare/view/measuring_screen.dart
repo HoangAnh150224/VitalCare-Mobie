@@ -2,10 +2,33 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../api/api.dart';
+import '../ble/band_link.dart';
+import '../ble/band_protocol.dart';
+import 'common.dart';
 import 'measurement_result_screen.dart';
 
+/// Uploads what the band stored to the patient's record, then lets the band
+/// delete it.
+Future<BandSyncSummary> syncBand(BandLink link, String deviceCode) => link.sync(
+  (readings) => Api.instance.devices.uploadReadings(
+    deviceCode,
+    readings,
+    pendingOnDevice: link.status.value?.pendingSegments,
+    battery: link.status.value?.battery,
+  ),
+);
+
+/// Shows the band's live readings until [_target] samples have a valid
+/// heart rate, then syncs and opens the result.
+///
+/// Without a [link] (web, desktop, or not connected yet) it only explains
+/// that measuring needs the phone app and a connected band.
 class MeasuringScreen extends StatefulWidget {
-  const MeasuringScreen({super.key});
+  const MeasuringScreen({super.key, this.link, this.deviceCode});
+
+  final BandLink? link;
+  final String? deviceCode;
 
   @override
   State<MeasuringScreen> createState() => _MeasuringScreenState();
@@ -15,30 +38,98 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
   static const _primary = Color(0xFF008C91);
   static const _ink = Color(0xFF164E50);
   static const _muted = Color(0xFF657E80);
-  late final Timer _timer;
-  int _elapsed = 0;
-  bool get _complete => _elapsed >= 15;
+  static const _target = 30;
+
+  StreamSubscription<LiveSample>? _subscription;
+  LiveSample? _last;
+  final _heartRates = <double>[];
+  final _spo2s = <double>[];
+  final _bodies = <double>[];
+  final _skins = <double>[];
+  bool _finishing = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() => _elapsed++);
-      if (_complete) {
-        timer.cancel();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => MeasurementResultScreen(measuredAt: DateTime.now()),
-          ),
-        );
-      }
-    });
+    _subscription = widget.link?.live.listen(_onSample);
+    widget.link?.connected.addListener(_onConnection);
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    widget.link?.connected.removeListener(_onConnection);
+    _subscription?.cancel();
     super.dispose();
+  }
+
+  void _onConnection() {
+    if (mounted) setState(() {});
+  }
+
+  void _onSample(LiveSample sample) {
+    if (!mounted || _finishing) return;
+    setState(() {
+      _last = sample;
+      if (sample.heartRateValid) _heartRates.add(sample.heartRate.toDouble());
+      if (sample.spo2Valid) _spo2s.add(sample.spo2.toDouble());
+      if (sample.bodyTemperatureValid) _bodies.add(sample.bodyTemperature!);
+      if (sample.skinTemperatureValid) _skins.add(sample.skinTemperature!);
+    });
+    if (_heartRates.length >= _target) _finish();
+  }
+
+  static double? _average(List<double> values) =>
+      values.isEmpty ? null : values.reduce((a, b) => a + b) / values.length;
+
+  Future<void> _finish() async {
+    setState(() => _finishing = true);
+    await _subscription?.cancel();
+    BandSyncSummary? summary;
+    Object? syncError;
+    try {
+      summary = await syncBand(widget.link!, widget.deviceCode!);
+    } catch (e) {
+      syncError = e;
+    }
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => MeasurementResultScreen(
+          measuredAt: DateTime.now(),
+          heartRate: _average(_heartRates),
+          spo2: _average(_spo2s),
+          bodyTemperature: _average(_bodies),
+          skinTemperature: _average(_skins),
+          bodyUncalibrated: _last?.bodyTemperatureUncalibrated ?? false,
+          sync: summary,
+          syncError: syncError,
+        ),
+      ),
+    );
+  }
+
+  String get _bodyNote {
+    final last = _last;
+    final notes = [
+      if (last != null && last.skinTemperatureValid)
+        'Da ${decimal(last.skinTemperature!)}°C',
+      if (last != null && last.bodyTemperatureUncalibrated) 'chưa hiệu chuẩn',
+    ];
+    return notes.isEmpty ? 'Ước tính' : notes.join(' · ');
+  }
+
+  String get _hint {
+    if (widget.link == null) {
+      return 'Chưa kết nối thiết bị đo. Thiết bị đo chỉ dùng được trên ứng dụng điện thoại.';
+    }
+    if (_finishing) return 'Đang lưu kết quả lên hệ thống...';
+    if (!widget.link!.connected.value) {
+      return 'Mất kết nối với thiết bị đo. Hãy quay lại và kết nối lại.';
+    }
+    final last = _last;
+    if (last == null) return 'Đang chờ số liệu từ thiết bị...';
+    if (!last.hasFinger) return 'Đặt ngón tay lên cảm biến';
+    return 'Hãy ngồi yên và giữ ngón tay trên cảm biến.\nKết quả sẽ hiển thị khi đo xong.';
   }
 
   Widget _metric(
@@ -46,8 +137,10 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
     String value,
     String unit,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    String status = 'Đang đo',
+    String note = 'Trực tiếp',
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
       decoration: BoxDecoration(
@@ -69,34 +162,33 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
           const SizedBox(height: 14),
           Text(label, style: const TextStyle(fontSize: 13, color: _muted)),
           const SizedBox(height: 8),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: value,
-                  style: const TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
+          // The number shrinks to fit its card rather than breaking mid-value on a narrow phone.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: value,
+                    style: const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.w700,
+                      color: _ink,
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: unit,
-                  style: const TextStyle(fontSize: 12, color: _ink),
-                ),
-              ],
+                  TextSpan(
+                    text: unit,
+                    style: const TextStyle(fontSize: 12, color: _ink),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            _complete ? 'Hoàn tất' : 'Đang đo',
-            style: const TextStyle(fontSize: 12, color: _primary),
-          ),
+          Text(status, style: const TextStyle(fontSize: 12, color: _primary)),
           const SizedBox(height: 5),
-          const Text(
-            'Dữ liệu mẫu',
-            style: TextStyle(fontSize: 10, color: _muted),
-          ),
+          Text(note, style: const TextStyle(fontSize: 10, color: _muted)),
         ],
       ),
     );
@@ -104,7 +196,9 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final percent = (_elapsed / 15 * 100).round();
+    final progress = (_heartRates.length / _target).clamp(0.0, 1.0);
+    final percent = (progress * 100).round();
+    final last = _last;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: Colors.transparent,
@@ -122,9 +216,9 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
             tooltip: 'Quay lại',
             icon: const Icon(Icons.arrow_back_rounded),
           ),
-          title: Text(
-            _complete ? 'Hoàn tất đo' : 'Đang đo',
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+          title: const Text(
+            'Đang đo',
+            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
           ),
         ),
         body: Container(
@@ -144,20 +238,20 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        _complete
-                            ? 'Đã hoàn tất đo mô phỏng'
-                            : 'Đang đo chỉ số sức khỏe',
-                        style: const TextStyle(
+                      const Text(
+                        'Đang đo chỉ số sức khỏe',
+                        style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: _ink,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Chế độ mô phỏng · Chưa kết nối thiết bị thực tế',
-                        style: TextStyle(
+                      Text(
+                        widget.link == null
+                            ? 'Chưa kết nối thiết bị đo'
+                            : 'Thiết bị ${widget.deviceCode ?? widget.link!.deviceCode}',
+                        style: const TextStyle(
                           fontSize: 13,
                           height: 1.5,
                           color: _muted,
@@ -197,10 +291,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                             ),
                             const SizedBox(height: 14),
                             TweenAnimationBuilder<double>(
-                              tween: Tween<double>(
-                                begin: 0,
-                                end: _elapsed / 15,
-                              ),
+                              tween: Tween<double>(begin: 0, end: progress),
                               duration: const Duration(milliseconds: 350),
                               builder: (context, progress, child) =>
                                   LinearProgressIndicator(
@@ -209,7 +300,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                     color: _primary,
                                     backgroundColor: const Color(0xFFE5EFED),
-                                    semanticsLabel: 'Tiến trình đo mô phỏng',
+                                    semanticsLabel: 'Tiến trình đo',
                                     semanticsValue: '$percent%',
                                   ),
                             ),
@@ -222,24 +313,34 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                           final cards = [
                             _metric(
                               'SpO₂',
-                              '97',
+                              last != null && last.spo2Valid
+                                  ? '${last.spo2}'
+                                  : '--',
                               '%',
                               Icons.water_drop_outlined,
                               const Color(0xFF298CAB),
                             ),
                             _metric(
                               'Nhịp tim',
-                              '74',
+                              last != null && last.heartRateValid
+                                  ? '${last.heartRate}'
+                                  : '--',
                               ' bpm',
                               Icons.favorite_border_rounded,
                               const Color(0xFFD0767F),
                             ),
                             _metric(
-                              'Nhiệt độ da',
-                              '33,3',
+                              'Nhiệt độ cơ thể (ước tính)',
+                              last != null && last.bodyTemperatureValid
+                                  ? decimal(last.bodyTemperature!)
+                                  : '--',
                               '°C',
                               Icons.thermostat_rounded,
                               const Color(0xFFC28B3A),
+                              status: last != null && !last.bodyTemperatureValid
+                                  ? 'Đang ổn định nhiệt…'
+                                  : 'Đang đo',
+                              note: _bodyNote,
                             ),
                           ];
                           if (constraints.maxWidth < 300 ||
@@ -279,8 +380,8 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
-                              _complete
-                                  ? Icons.check_circle_outline_rounded
+                              last != null && !last.hasFinger
+                                  ? Icons.touch_app_outlined
                                   : Icons.info_outline_rounded,
                               color: _primary,
                               size: 22,
@@ -288,9 +389,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                _complete
-                                    ? 'Đây là kết quả minh họa, không phải kết quả đo thực tế và không được lưu vào lịch sử.'
-                                    : 'Hãy ngồi yên và giữ thiết bị trên người.\nKết quả sẽ hiển thị khi đo xong.',
+                                _hint,
                                 style: const TextStyle(
                                   fontSize: 14,
                                   height: 1.6,
@@ -303,7 +402,9 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                       ),
                       const SizedBox(height: 20),
                       OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: _finishing
+                            ? null
+                            : () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: _ink,
                           backgroundColor: Colors.white,
@@ -313,9 +414,9 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: Text(
-                          _complete ? 'Quay lại' : 'Hủy',
-                          style: const TextStyle(
+                        child: const Text(
+                          'Hủy',
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),

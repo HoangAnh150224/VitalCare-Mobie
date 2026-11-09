@@ -86,12 +86,17 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
         const SizedBox(height: 14),
         Text(label, style: const TextStyle(fontSize: 12, color: _muted)),
         const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.w700,
-            color: _ink,
+        // The number shrinks to fit its card rather than breaking mid-value on a narrow phone.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -186,7 +191,10 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
     final time = at == null ? ' ' : relativeTime(at);
     final spo2 = latest?.spo2 == null ? '--' : '${decimal(latest!.spo2!)}%';
     final pulse = latest?.heartRate == null ? '--' : '${latest!.heartRate} bpm';
-    final temperature = latest?.skinTemperature == null
+    final body = latest?.bodyTemperature;
+    final temperature = body != null
+        ? '${decimal(body)}°C'
+        : latest?.skinTemperature == null
         ? '--'
         : '${decimal(latest!.skinTemperature!)}°C';
     final expires = patient.expiresAt;
@@ -287,7 +295,7 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
                               VitalMetric.heartRate,
                             ),
                             _metric(
-                              'Nhiệt độ da',
+                              body != null ? 'Nhiệt độ cơ thể' : 'Nhiệt độ da',
                               temperature,
                               Icons.thermostat_rounded,
                               const Color(0xFFC28B3A),

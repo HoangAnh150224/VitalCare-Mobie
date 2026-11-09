@@ -239,7 +239,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _open(
       Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: view,
+        // The tab views leave the bottom edge to the tab bar; opened on their own there is none, so
+        // the phone's home indicator would sit over the last item.
+        body: SafeArea(top: false, child: view),
       ),
     );
   }
@@ -269,12 +271,17 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 14),
           Text(label, style: const TextStyle(color: _muted, fontSize: 13)),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: _ink,
+          // The number shrinks to fit its card rather than breaking mid-value on a narrow phone.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: _ink,
+              ),
             ),
           ),
           Text(unit, style: const TextStyle(color: _muted, fontSize: 12)),
@@ -384,8 +391,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Color(0xFFE56B7A),
                         ),
                         _metric(
-                          'Nhiệt độ da',
-                          latest?.skinTemperature == null
+                          latest?.bodyTemperature != null
+                              ? 'Nhiệt độ cơ thể'
+                              : 'Nhiệt độ da',
+                          latest?.bodyTemperature != null
+                              ? decimal(latest!.bodyTemperature!)
+                              : latest?.skinTemperature == null
                               ? '--'
                               : decimal(latest!.skinTemperature!),
                           '°C',

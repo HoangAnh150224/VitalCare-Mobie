@@ -75,9 +75,12 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      // Scrollable and allowed past half the screen: a long message, large text or a phone on its
+      // side would otherwise push the call button off the sheet.
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       builder: (sheet) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -402,7 +405,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
         ),
         NavigationDestination(
           icon: Icon(Icons.favorite_border_rounded),
-          label: 'Được chia sẻ',
+          label: 'Chia sẻ',
         ),
         NavigationDestination(
           icon: Icon(Icons.chat_bubble_outline_rounded),

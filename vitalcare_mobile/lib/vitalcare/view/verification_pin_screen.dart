@@ -310,24 +310,33 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                           children: [
                             Align(
                               alignment: Alignment.center,
-                              child: Container(
-                                width: 104,
-                                height: 104,
-                                clipBehavior: Clip.antiAlias,
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFE1EDEA),
+                              // Smaller on a phone on its side, where the full-size logo takes a third of the height.
+                              child: SizedBox.square(
+                                dimension:
+                                    MediaQuery.sizeOf(context).height < 500
+                                    ? 64
+                                    : 104,
+                                child: FittedBox(
+                                  child: Container(
+                                    width: 104,
+                                    height: 104,
+                                    clipBehavior: Clip.antiAlias,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFE1EDEA),
+                                      ),
+                                    ),
+                                    child: Image.asset(
+                                      'assets/images/logo.jpg',
+                                      height: 80,
+                                      width: 88,
+                                      fit: BoxFit.contain,
+                                      semanticLabel: 'VitalCare',
+                                    ),
                                   ),
-                                ),
-                                child: Image.asset(
-                                  'assets/images/logo.jpg',
-                                  height: 80,
-                                  width: 88,
-                                  fit: BoxFit.contain,
-                                  semanticLabel: 'VitalCare',
                                 ),
                               ),
                             ),

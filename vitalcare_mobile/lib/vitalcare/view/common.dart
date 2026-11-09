@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api.dart';
+import '../ble/band_link.dart';
 
 /// Shared bits for screens that load from the API: loading, empty and error
 /// blocks in the app's colours, Vietnamese formatting, and opening links.
@@ -11,9 +12,11 @@ const _primary = Color(0xFF008C91);
 const _muted = Color(0xFF657E80);
 
 /// The message to show for any failure.
-String errorText(Object error) => error is ApiException
-    ? error.message
-    : 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+String errorText(Object error) => switch (error) {
+  ApiException() => error.message,
+  BandException() => error.message,
+  _ => 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+};
 
 void showNotice(BuildContext context, String message) {
   ScaffoldMessenger.of(context)

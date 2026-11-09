@@ -56,7 +56,9 @@ class _MeasurementHistoryScreenState extends State<MeasurementHistoryScreen> {
   String _values(VitalReading record) => [
     'SpO₂ ${record.spo2 == null ? '--' : decimal(record.spo2!)}%',
     'Nhịp tim ${record.heartRate ?? '--'} bpm',
-    'Da ${record.skinTemperature == null ? '--' : decimal(record.skinTemperature!)}°C',
+    record.bodyTemperature != null
+        ? 'Cơ thể ${decimal(record.bodyTemperature!)}°C'
+        : 'Da ${record.skinTemperature == null ? '--' : decimal(record.skinTemperature!)}°C',
   ].join(' · ');
 
   String _label(DateTime time) {
@@ -162,11 +164,14 @@ class _MeasurementHistoryScreenState extends State<MeasurementHistoryScreen> {
                             ),
                           ),
                           if (!_loading && _total > records.length)
-                            Text(
-                              'Hiển thị ${records.length} lần mới nhất',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: _muted,
+                            Flexible(
+                              child: Text(
+                                'Hiển thị ${records.length} lần mới nhất',
+                                textAlign: TextAlign.end,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _muted,
+                                ),
                               ),
                             ),
                         ],

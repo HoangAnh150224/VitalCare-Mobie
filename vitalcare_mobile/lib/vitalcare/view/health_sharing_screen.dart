@@ -224,27 +224,32 @@ class _HealthSharingScreenState extends State<HealthSharingScreen> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE0ECE9)),
             ),
-            child: ListTile(
-              leading: const Icon(
-                Icons.person_outline_rounded,
-                color: _primary,
-              ),
-              title: Text(
-                share.caregiverName ?? share.caregiverPhone ?? '—',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: _ink,
+            // Its own see-through Material: the tile's ripple is painted on the nearest one, which
+            // the white box above would otherwise cover.
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                leading: const Icon(
+                  Icons.person_outline_rounded,
+                  color: _primary,
                 ),
-              ),
-              subtitle: Text(
-                '${_shareLine(share)}${share.expiresAt == null ? '' : ' · đến ${fullDate(share.expiresAt!)}'}',
-              ),
-              trailing: TextButton(
-                onPressed: _revoking == null ? () => _revoke(share) : null,
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFB24C4C),
+                title: Text(
+                  share.caregiverName ?? share.caregiverPhone ?? '—',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: _ink,
+                  ),
                 ),
-                child: Text(_revoking == share.id ? '...' : 'Thu hồi'),
+                subtitle: Text(
+                  '${_shareLine(share)}${share.expiresAt == null ? '' : ' · đến ${fullDate(share.expiresAt!)}'}',
+                ),
+                trailing: TextButton(
+                  onPressed: _revoking == null ? () => _revoke(share) : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFB24C4C),
+                  ),
+                  child: Text(_revoking == share.id ? '...' : 'Thu hồi'),
+                ),
               ),
             ),
           ),
@@ -349,42 +354,47 @@ class _HealthSharingScreenState extends State<HealthSharingScreen> {
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: const Color(0xFFE0ECE9)),
                       ),
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < _options.length; i++) ...[
-                            if (i > 0)
-                              const Divider(
-                                height: 1,
-                                indent: 16,
-                                endIndent: 16,
-                                color: Color(0xFFE0ECE9),
-                              ),
-                            CheckboxListTile(
-                              value: _selected.contains(i),
-                              onChanged: (value) => setState(() {
-                                if (value == true) {
-                                  _selected.add(i);
-                                } else {
-                                  _selected.remove(i);
-                                }
-                              }),
-                              activeColor: _primary,
-                              controlAffinity: ListTileControlAffinity.leading,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              title: Text(
-                                _options[i],
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  height: 1.5,
-                                  color: _ink,
+                      // See-through Material so the tiles' ripples show over the white box.
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < _options.length; i++) ...[
+                              if (i > 0)
+                                const Divider(
+                                  height: 1,
+                                  indent: 16,
+                                  endIndent: 16,
+                                  color: Color(0xFFE0ECE9),
+                                ),
+                              CheckboxListTile(
+                                value: _selected.contains(i),
+                                onChanged: (value) => setState(() {
+                                  if (value == true) {
+                                    _selected.add(i);
+                                  } else {
+                                    _selected.remove(i);
+                                  }
+                                }),
+                                activeColor: _primary,
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                title: Text(
+                                  _options[i],
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    height: 1.5,
+                                    color: _ink,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),

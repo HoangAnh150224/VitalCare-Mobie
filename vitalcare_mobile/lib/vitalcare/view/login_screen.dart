@@ -123,24 +123,33 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             Align(
                               alignment: Alignment.center,
-                              child: Container(
-                                width: 104,
-                                height: 104,
-                                clipBehavior: Clip.antiAlias,
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFE1EDEA),
+                              // Smaller on a phone on its side, where the full-size logo takes a third of the height.
+                              child: SizedBox.square(
+                                dimension:
+                                    MediaQuery.sizeOf(context).height < 500
+                                    ? 64
+                                    : 104,
+                                child: FittedBox(
+                                  child: Container(
+                                    width: 104,
+                                    height: 104,
+                                    clipBehavior: Clip.antiAlias,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFE1EDEA),
+                                      ),
+                                    ),
+                                    child: Image.asset(
+                                      'assets/images/logo.jpg',
+                                      height: 80,
+                                      width: 88,
+                                      fit: BoxFit.contain,
+                                      semanticLabel: 'VitalCare',
+                                    ),
                                   ),
-                                ),
-                                child: Image.asset(
-                                  'assets/images/logo.jpg',
-                                  height: 80,
-                                  width: 88,
-                                  fit: BoxFit.contain,
-                                  semanticLabel: 'VitalCare',
                                 ),
                               ),
                             ),
@@ -270,13 +279,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                       semanticLabel: 'Ghi nhớ đăng nhập',
                                     ),
-                                    GestureDetector(
-                                      onTap: () => setState(
-                                        () => _rememberLogin = !_rememberLogin,
-                                      ),
-                                      child: const Text(
-                                        'Ghi nhớ đăng nhập',
-                                        style: TextStyle(color: _ink),
+                                    // Flexible: on a narrow phone or with large text the label wraps
+                                    // instead of pushing the row off the screen.
+                                    Flexible(
+                                      child: GestureDetector(
+                                        onTap: () => setState(
+                                          () =>
+                                              _rememberLogin = !_rememberLogin,
+                                        ),
+                                        child: const Text(
+                                          'Ghi nhớ đăng nhập',
+                                          style: TextStyle(color: _ink),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -325,11 +339,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     const SizedBox(width: 12),
                                   ],
-                                  const Text(
-                                    'Đăng nhập',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
+                                  const Flexible(
+                                    child: Text(
+                                      'Đăng nhập',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
