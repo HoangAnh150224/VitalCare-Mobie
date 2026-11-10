@@ -22,9 +22,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _busy = false;
   Map<String, String> _serverErrors = const {};
 
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _link = Color(0xFF007C80);
+  static const _link = Color(0xFF00777C);
 
   @override
   void dispose() {
@@ -68,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return InputDecoration(
       hintText: hint,
       errorText: error,
-      hintStyle: const TextStyle(color: Color(0xFF778A91), fontSize: 15),
+      hintStyle: const TextStyle(color: Color(0xFF5F7378), fontSize: 15),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
@@ -76,11 +76,11 @@ class _LoginScreenState extends State<LoginScreen> {
       prefixIcon: Icon(icon, color: _link, size: 22),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFCCDADC)),
+        borderSide: const BorderSide(color: Color(0xFFA9C1BE)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFCCDADC)),
+        borderSide: const BorderSide(color: Color(0xFFA9C1BE)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

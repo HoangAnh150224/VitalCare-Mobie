@@ -12,8 +12,8 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
   bool _unreadOnly = false;
   List<AppNotification> _items = const [];
   bool _loading = true;
@@ -196,7 +196,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 : _ink,
                           ),
                           side: const WidgetStatePropertyAll(
-                            BorderSide(color: Color(0xFFCCDADC)),
+                            BorderSide(color: Color(0xFFA9C1BE)),
                           ),
                         ),
                       ),
@@ -253,7 +253,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               side: BorderSide(
                                 color: !item.read
                                     ? const Color(0xFFB8DDD5)
-                                    : const Color(0xFFE0ECE9),
+                                    : const Color(0xFFBDD3CE),
                               ),
                             ),
                             clipBehavior: Clip.antiAlias,

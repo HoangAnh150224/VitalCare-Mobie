@@ -16,9 +16,9 @@ class MeasurementScreen extends StatefulWidget {
 /// The device card shows the band assigned to the patient (`/my_devices`);
 /// the phone connects to it over Bluetooth, pairs with it, and syncs it.
 class _MeasurementScreenState extends State<MeasurementScreen> {
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
 
   MyDevice? _device;
   bool _loading = true;
@@ -209,7 +209,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
           foregroundColor: _primary,
           backgroundColor: Colors.white,
           minimumSize: const Size.fromHeight(54),
-          side: const BorderSide(color: Color(0xFFCCDADC)),
+          side: const BorderSide(color: Color(0xFFA9C1BE)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -230,7 +230,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0ECE9)),
+          border: Border.all(color: const Color(0xFFBDD3CE)),
         ),
         child: Column(
           children: [
@@ -466,19 +466,19 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                           _metric(
                             'SpO₂',
                             Icons.water_drop_outlined,
-                            const Color(0xFF298CAB),
+                            const Color(0xFF1F6F8A),
                           ),
                           const SizedBox(width: 10),
                           _metric(
                             'Nhịp tim',
                             Icons.favorite_border_rounded,
-                            const Color(0xFFD0767F),
+                            const Color(0xFFB23A48),
                           ),
                           const SizedBox(width: 10),
                           _metric(
                             'Nhiệt độ cơ thể',
                             Icons.thermostat_rounded,
-                            const Color(0xFFC28B3A),
+                            const Color(0xFF8A5A12),
                           ),
                         ],
                       ),

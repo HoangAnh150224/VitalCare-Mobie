@@ -16,9 +16,9 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _link = Color(0xFF007C80);
+  static const _link = Color(0xFF00777C);
 
   /// What the API says when the number already has an account (UC-04 D2).
   static const _phoneTaken = 'Số điện thoại đã được sử dụng';
@@ -116,7 +116,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const Text(
                         'Mã xác nhận sẽ được gửi qua SMS tới số điện thoại bạn đăng ký.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xFF597677), height: 1.5),
+                        style: TextStyle(color: Color(0xFF3E5658), height: 1.5),
                       ),
                       const SizedBox(height: 24),
                       TextFormField(

@@ -32,8 +32,8 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
   static const _pollEvery = Duration(seconds: 10);
   final _text = TextEditingController();
   final _scroll = ScrollController();
@@ -209,7 +209,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
                 decoration: const BoxDecoration(
                   color: Color(0xFFEEF9F6),
-                  border: Border(bottom: BorderSide(color: Color(0xFFE0ECE9))),
+                  border: Border(bottom: BorderSide(color: Color(0xFFBDD3CE))),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +331,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     : const EdgeInsets.fromLTRB(18, 12, 18, 16),
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFE0ECE9))),
+                  border: Border(top: BorderSide(color: Color(0xFFBDD3CE))),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -383,7 +383,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: const BorderSide(
-                            color: Color(0xFFCCDADC),
+                            color: Color(0xFFA9C1BE),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -406,7 +406,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 foregroundColor: _primary,
                                 minimumSize: const Size.fromHeight(48),
                                 side: const BorderSide(
-                                  color: Color(0xFFCCDADC),
+                                  color: Color(0xFFA9C1BE),
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),

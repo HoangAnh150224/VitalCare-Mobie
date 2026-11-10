@@ -12,8 +12,8 @@ class AppointmentsView extends StatefulWidget {
 
 class _AppointmentsViewState extends State<AppointmentsView> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
   bool _past = false;
   late final DateTime _today = DateTime.now();
   List<Appointment> _appointments = const [];
@@ -76,7 +76,7 @@ class _AppointmentsViewState extends State<AppointmentsView> {
         color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFFE0ECE9)),
+          side: const BorderSide(color: Color(0xFFBDD3CE)),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -240,7 +240,7 @@ class _AppointmentsViewState extends State<AppointmentsView> {
                             : _ink,
                       ),
                       side: const WidgetStatePropertyAll(
-                        BorderSide(color: Color(0xFFCCDADC)),
+                        BorderSide(color: Color(0xFFA9C1BE)),
                       ),
                       textStyle: const WidgetStatePropertyAll(
                         TextStyle(fontSize: 14, fontWeight: FontWeight.w600),

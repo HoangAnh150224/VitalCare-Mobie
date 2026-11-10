@@ -39,9 +39,9 @@ class MeasurementResultScreen extends StatelessWidget {
   final bool bodyUncalibrated;
   final BandSyncSummary? sync;
   final Object? syncError;
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
 
   String get _time =>
       '${measuredAt.hour.toString().padLeft(2, '0')}:${measuredAt.minute.toString().padLeft(2, '0')}';
@@ -61,7 +61,7 @@ class MeasurementResultScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE0ECE9)),
+        border: Border.all(color: const Color(0xFFBDD3CE)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +103,7 @@ class MeasurementResultScreen extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             note,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF33846B)),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF24704F)),
           ),
           const SizedBox(height: 5),
           Text(_time, style: const TextStyle(fontSize: 11, color: _muted)),
@@ -181,7 +181,7 @@ class MeasurementResultScreen extends StatelessWidget {
                               spo2 == null ? '--' : '${spo2!.round()}',
                               '%',
                               Icons.water_drop_outlined,
-                              const Color(0xFF298CAB),
+                              const Color(0xFF1F6F8A),
                             ),
                             _metric(
                               'Nhịp tim',
@@ -190,7 +190,7 @@ class MeasurementResultScreen extends StatelessWidget {
                                   : '${heartRate!.round()}',
                               ' bpm',
                               Icons.favorite_border_rounded,
-                              const Color(0xFFD0767F),
+                              const Color(0xFFB23A48),
                             ),
                             if (bodyTemperature != null ||
                                 skinTemperature == null)
@@ -201,7 +201,7 @@ class MeasurementResultScreen extends StatelessWidget {
                                     : decimal(bodyTemperature!),
                                 '°C',
                                 Icons.thermostat_rounded,
-                                const Color(0xFFC28B3A),
+                                const Color(0xFF8A5A12),
                                 note: [
                                   'Trung bình lần đo',
                                   if (skinTemperature != null)
@@ -215,7 +215,7 @@ class MeasurementResultScreen extends StatelessWidget {
                                 decimal(skinTemperature!),
                                 '°C',
                                 Icons.thermostat_rounded,
-                                const Color(0xFFC28B3A),
+                                const Color(0xFF8A5A12),
                               ),
                           ];
                           if (constraints.maxWidth < 300 ||
@@ -250,7 +250,7 @@ class MeasurementResultScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE0ECE9)),
+                          border: Border.all(color: const Color(0xFFBDD3CE)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,7 +349,7 @@ class MeasurementResultScreen extends StatelessWidget {
                           foregroundColor: _primary,
                           backgroundColor: Colors.white,
                           minimumSize: const Size.fromHeight(54),
-                          side: const BorderSide(color: Color(0xFFCCDADC)),
+                          side: const BorderSide(color: Color(0xFFA9C1BE)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),

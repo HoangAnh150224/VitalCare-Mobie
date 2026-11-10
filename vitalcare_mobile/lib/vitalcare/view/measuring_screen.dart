@@ -35,9 +35,9 @@ class MeasuringScreen extends StatefulWidget {
 }
 
 class _MeasuringScreenState extends State<MeasuringScreen> {
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
   static const _target = 30;
 
   StreamSubscription<LiveSample>? _subscription;
@@ -146,7 +146,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE0ECE9)),
+        border: Border.all(color: const Color(0xFFBDD3CE)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,7 +263,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE0ECE9)),
+                          border: Border.all(color: const Color(0xFFBDD3CE)),
                         ),
                         child: Column(
                           children: [
@@ -318,7 +318,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                                   : '--',
                               '%',
                               Icons.water_drop_outlined,
-                              const Color(0xFF298CAB),
+                              const Color(0xFF1F6F8A),
                             ),
                             _metric(
                               'Nhịp tim',
@@ -327,7 +327,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                                   : '--',
                               ' bpm',
                               Icons.favorite_border_rounded,
-                              const Color(0xFFD0767F),
+                              const Color(0xFFB23A48),
                             ),
                             _metric(
                               'Nhiệt độ cơ thể (ước tính)',
@@ -336,7 +336,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                                   : '--',
                               '°C',
                               Icons.thermostat_rounded,
-                              const Color(0xFFC28B3A),
+                              const Color(0xFF8A5A12),
                               status: last != null && !last.bodyTemperatureValid
                                   ? 'Đang ổn định nhiệt…'
                                   : 'Đang đo',
@@ -409,7 +409,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                           foregroundColor: _ink,
                           backgroundColor: Colors.white,
                           minimumSize: const Size.fromHeight(54),
-                          side: const BorderSide(color: Color(0xFFCCDADC)),
+                          side: const BorderSide(color: Color(0xFFA9C1BE)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),

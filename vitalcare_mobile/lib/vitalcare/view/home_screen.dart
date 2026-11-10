@@ -81,9 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
 
   void _showRegistrationOptions() {
     showModalBottomSheet<void>(
@@ -258,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE0ECE9)),
+        border: Border.all(color: const Color(0xFFBDD3CE)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           latest?.spo2 == null ? '--' : decimal(latest!.spo2!),
                           '%',
                           Icons.water_drop_outlined,
-                          const Color(0xFF008C91),
+                          const Color(0xFF00777C),
                         ),
                         _metric(
                           'Nhịp tim',
@@ -401,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               : decimal(latest!.skinTemperature!),
                           '°C',
                           Icons.thermostat_outlined,
-                          const Color(0xFFE4A03B),
+                          const Color(0xFFC27A12),
                         ),
                       ];
                       final stacked =

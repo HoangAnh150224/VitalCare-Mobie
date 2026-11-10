@@ -18,7 +18,7 @@ class ExamRegistrationScreen extends StatefulWidget {
 }
 
 class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _phone = TextEditingController();
@@ -374,7 +374,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
           ] else if (_dayOpen == true)
             const Text(
               'Phòng khám sẽ xếp bạn vào một bác sĩ khám trong ngày; tên bác sĩ và số khám hiện trên phiếu sau khi đăng ký.',
-              style: TextStyle(color: Color(0xFF657E80), height: 1.5),
+              style: TextStyle(color: Color(0xFF3E5658), height: 1.5),
             ),
           if (_dayOpen != null) const SizedBox(height: 16),
           TextFormField(
@@ -392,7 +392,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
           const SizedBox(height: 12),
           const Text(
             'Bạn nhận số thứ tự khám ngay sau khi đăng ký. Giờ khám là giờ dự kiến theo số thứ tự của bác sĩ.',
-            style: TextStyle(color: Color(0xFF657E80), height: 1.5),
+            style: TextStyle(color: Color(0xFF3E5658), height: 1.5),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(

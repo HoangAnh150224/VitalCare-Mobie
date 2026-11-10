@@ -17,8 +17,8 @@ class CaregiverHomeScreen extends StatefulWidget {
 
 class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _teal = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _teal = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
   int _tab = 0;
   SharedPatient? _person;
   List<SharedPatient> _people = const [];
@@ -195,7 +195,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                   backgroundColor: Colors.white,
                   foregroundColor: _teal,
                   minimumSize: const Size.fromHeight(52),
-                  side: const BorderSide(color: Color(0xFFCCDADC)),
+                  side: const BorderSide(color: Color(0xFFA9C1BE)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -237,7 +237,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE0ECE9)),
+        side: const BorderSide(color: Color(0xFFBDD3CE)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(

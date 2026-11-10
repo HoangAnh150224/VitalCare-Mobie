@@ -8,8 +8,8 @@ import '../ble/band_link.dart';
 /// blocks in the app's colours, Vietnamese formatting, and opening links.
 
 const _ink = Color(0xFF164E50);
-const _primary = Color(0xFF008C91);
-const _muted = Color(0xFF657E80);
+const _primary = Color(0xFF00777C);
+const _muted = Color(0xFF3E5658);
 
 /// The message to show for any failure.
 String errorText(Object error) => switch (error) {

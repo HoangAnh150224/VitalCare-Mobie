@@ -19,10 +19,10 @@ class HealthView extends StatefulWidget {
 
 class _HealthViewState extends State<HealthView> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
-  static const _normal = Color(0xFF33846B);
-  static const _attention = Color(0xFFB0662A);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
+  static const _normal = Color(0xFF24704F);
+  static const _attention = Color(0xFF93521C);
 
   VitalLatest? _latest;
   List<(DateTime, double)> _spo2 = const [];
@@ -79,7 +79,7 @@ class _HealthViewState extends State<HealthView> {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE0ECE9)),
+      border: Border.all(color: const Color(0xFFBDD3CE)),
     ),
     child: child,
   );
@@ -218,7 +218,7 @@ class _HealthViewState extends State<HealthView> {
               latest?.spo2At,
               VitalMetric.spo2,
               Icons.water_drop_outlined,
-              const Color(0xFF298CAB),
+              const Color(0xFF1F6F8A),
             ),
             _metric(
               'Nhịp tim',
@@ -226,7 +226,7 @@ class _HealthViewState extends State<HealthView> {
               latest?.heartRateAt,
               VitalMetric.heartRate,
               Icons.favorite_border_rounded,
-              const Color(0xFFD0767F),
+              const Color(0xFFB23A48),
             ),
             latest?.bodyTemperature != null
                 ? _metric(
@@ -235,7 +235,7 @@ class _HealthViewState extends State<HealthView> {
                     latest.bodyTemperatureAt,
                     VitalMetric.skinTemperature,
                     Icons.thermostat_rounded,
-                    const Color(0xFFC28B3A),
+                    const Color(0xFF8A5A12),
                   )
                 : _metric(
                     'Nhiệt độ da',
@@ -245,7 +245,7 @@ class _HealthViewState extends State<HealthView> {
                     latest?.skinTemperatureAt,
                     VitalMetric.skinTemperature,
                     Icons.thermostat_rounded,
-                    const Color(0xFFC28B3A),
+                    const Color(0xFF8A5A12),
                   ),
           ];
           if (constraints.maxWidth < 320 ||
@@ -380,7 +380,7 @@ class _HealthViewState extends State<HealthView> {
                               backgroundColor: Colors.white,
                               foregroundColor: _primary,
                               minimumSize: const Size.fromHeight(50),
-                              side: const BorderSide(color: Color(0xFFCCDADC)),
+                              side: const BorderSide(color: Color(0xFFA9C1BE)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -450,7 +450,7 @@ class _Spo2Chart extends CustomPainter {
       final label = TextPainter(
         text: TextSpan(
           text: decimal(top - span * i / 2),
-          style: const TextStyle(fontSize: 10, color: Color(0xFF657E80)),
+          style: const TextStyle(fontSize: 10, color: Color(0xFF3E5658)),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -483,14 +483,14 @@ class _Spo2Chart extends CustomPainter {
     canvas.drawPath(
       line,
       Paint()
-        ..color = const Color(0xFF008C91)
+        ..color = const Color(0xFF00777C)
         ..strokeWidth = 2.5
         ..style = PaintingStyle.stroke
         ..strokeJoin = StrokeJoin.round,
     );
     for (final point in points) {
       canvas.drawCircle(point, 4, Paint()..color = Colors.white);
-      canvas.drawCircle(point, 3, Paint()..color = const Color(0xFF008C91));
+      canvas.drawCircle(point, 3, Paint()..color = const Color(0xFF00777C));
     }
   }
 

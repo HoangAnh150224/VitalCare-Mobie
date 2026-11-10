@@ -63,8 +63,8 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF008BA8),
-        ).copyWith(primary: const Color(0xFF008BA8)),
+          seedColor: const Color(0xFF00777C),
+        ).copyWith(primary: const Color(0xFF00777C)),
         scaffoldBackgroundColor: Colors.white,
       ),
       builder: clampTextScale,

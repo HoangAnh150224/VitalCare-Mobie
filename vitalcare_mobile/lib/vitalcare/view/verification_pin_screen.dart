@@ -26,9 +26,9 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
   final _pinKey = GlobalKey<FormFieldState<String>>();
   final _digits = List.generate(6, (_) => TextEditingController());
   final _focusNodes = List.generate(6, (_) => FocusNode());
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _link = Color(0xFF007C80);
+  static const _link = Color(0xFF00777C);
   bool _busy = false;
   bool _resending = false;
   String? _otpError;
@@ -129,7 +129,7 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                           borderSide: BorderSide(
                             color: error != null
                                 ? Theme.of(context).colorScheme.error
-                                : const Color(0xFFCCDADC),
+                                : const Color(0xFFA9C1BE),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -361,7 +361,7 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                               style: TextStyle(
                                 fontSize: 15,
                                 height: 1.5,
-                                color: Color(0xFF597677),
+                                color: Color(0xFF3E5658),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -410,7 +410,7 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                             const Text(
                               'Bạn chưa nhận được mã?',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Color(0xFF597677)),
+                              style: TextStyle(color: Color(0xFF3E5658)),
                             ),
                             TextButton(
                               onPressed: _resending ? null : _resend,

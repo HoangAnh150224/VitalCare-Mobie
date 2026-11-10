@@ -20,8 +20,8 @@ class FirstAidGuideScreen extends StatefulWidget {
 
 class _FirstAidGuideScreenState extends State<FirstAidGuideScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
-  static const _primary = Color(0xFF008C91);
+  static const _muted = Color(0xFF3E5658);
+  static const _primary = Color(0xFF00777C);
 
   FirstAidArticle? _article;
   bool _loading = true;
@@ -65,7 +65,7 @@ class _FirstAidGuideScreenState extends State<FirstAidGuideScreen> {
               foregroundColor: _primary,
               backgroundColor: Colors.white,
               minimumSize: const Size.fromHeight(50),
-              side: const BorderSide(color: Color(0xFFCCDADC)),
+              side: const BorderSide(color: Color(0xFFA9C1BE)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -101,7 +101,7 @@ class _FirstAidGuideScreenState extends State<FirstAidGuideScreen> {
         color: warning ? const Color(0xFFFFF5F2) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: warning ? const Color(0xFFF0D9D2) : const Color(0xFFE0ECE9),
+          color: warning ? const Color(0xFFF0D9D2) : const Color(0xFFBDD3CE),
         ),
       ),
       child: Column(

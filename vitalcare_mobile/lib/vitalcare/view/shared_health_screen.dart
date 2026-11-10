@@ -14,8 +14,8 @@ class SharedHealthScreen extends StatefulWidget {
 
 class _SharedHealthScreenState extends State<SharedHealthScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
 
   VitalLatest? _latest;
   List<Alert> _alerts = const [];
@@ -66,7 +66,7 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE0ECE9)),
+      border: Border.all(color: const Color(0xFFBDD3CE)),
     ),
     child: child,
   );
@@ -111,8 +111,8 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
             color: value == '--'
                 ? _muted
                 : _alerts.any((a) => a.isOpen && a.vitalMetric == metric)
-                ? const Color(0xFFB0662A)
-                : const Color(0xFF33846B),
+                ? const Color(0xFF93521C)
+                : const Color(0xFF24704F),
           ),
         ),
         const SizedBox(height: 5),
@@ -282,7 +282,7 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
                               'SpO₂',
                               spo2,
                               Icons.water_drop_outlined,
-                              const Color(0xFF298CAB),
+                              const Color(0xFF1F6F8A),
                               time,
                               VitalMetric.spo2,
                             ),
@@ -290,7 +290,7 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
                               'Nhịp tim',
                               pulse,
                               Icons.favorite_border_rounded,
-                              const Color(0xFFD0767F),
+                              const Color(0xFFB23A48),
                               time,
                               VitalMetric.heartRate,
                             ),
@@ -298,7 +298,7 @@ class _SharedHealthScreenState extends State<SharedHealthScreen> {
                               body != null ? 'Nhiệt độ cơ thể' : 'Nhiệt độ da',
                               temperature,
                               Icons.thermostat_rounded,
-                              const Color(0xFFC28B3A),
+                              const Color(0xFF8A5A12),
                               time,
                               VitalMetric.skinTemperature,
                             ),

@@ -13,8 +13,8 @@ class HealthSharingScreen extends StatefulWidget {
 
 class _HealthSharingScreenState extends State<HealthSharingScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
   static const _options = [
     'Chỉ số sức khỏe và các lần đo gần đây',
     'Thông báo sức khỏe quan trọng',
@@ -113,7 +113,7 @@ class _HealthSharingScreenState extends State<HealthSharingScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFCCDADC)),
+          borderSide: const BorderSide(color: Color(0xFFA9C1BE)),
         ),
       );
 
@@ -222,7 +222,7 @@ class _HealthSharingScreenState extends State<HealthSharingScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE0ECE9)),
+              border: Border.all(color: const Color(0xFFBDD3CE)),
             ),
             // Its own see-through Material: the tile's ripple is painted on the nearest one, which
             // the white box above would otherwise cover.
@@ -352,7 +352,7 @@ class _HealthSharingScreenState extends State<HealthSharingScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0xFFE0ECE9)),
+                        border: Border.all(color: const Color(0xFFBDD3CE)),
                       ),
                       // See-through Material so the tiles' ripples show over the white box.
                       child: Material(
@@ -365,7 +365,7 @@ class _HealthSharingScreenState extends State<HealthSharingScreen> {
                                   height: 1,
                                   indent: 16,
                                   endIndent: 16,
-                                  color: Color(0xFFE0ECE9),
+                                  color: Color(0xFFBDD3CE),
                                 ),
                               CheckboxListTile(
                                 value: _selected.contains(i),
@@ -413,7 +413,7 @@ class _HealthSharingScreenState extends State<HealthSharingScreen> {
                         backgroundColor: Colors.white,
                         foregroundColor: _ink,
                         padding: const EdgeInsets.all(16),
-                        side: const BorderSide(color: Color(0xFFCCDADC)),
+                        side: const BorderSide(color: Color(0xFFA9C1BE)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),

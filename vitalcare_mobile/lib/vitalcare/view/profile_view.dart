@@ -17,8 +17,8 @@ class ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<ProfileView> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
 
   Profile? _profile;
   bool _caregiver = false;
@@ -188,7 +188,7 @@ class _ProfileViewState extends State<ProfileView> {
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFFE0ECE9)),
+          side: const BorderSide(color: Color(0xFFBDD3CE)),
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
@@ -240,7 +240,7 @@ class _ProfileViewState extends State<ProfileView> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE0ECE9)),
+                    border: Border.all(color: const Color(0xFFBDD3CE)),
                   ),
                   child: Row(
                     children: [
@@ -491,8 +491,8 @@ class _DevicesSheet extends StatefulWidget {
 
 class _DevicesSheetState extends State<_DevicesSheet> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
 
   List<MyDevice> _devices = const [];
   bool _loading = true;
@@ -591,7 +591,7 @@ class _DevicesSheetState extends State<_DevicesSheet> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE0ECE9)),
+                  border: Border.all(color: const Color(0xFFBDD3CE)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
