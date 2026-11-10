@@ -323,6 +323,7 @@ class Appointment {
     this.examRoom,
     this.cancelReason,
     this.paidAt,
+    this.deskPaymentChosenAt,
   });
 
   factory Appointment.fromJson(Json json) {
@@ -349,6 +350,7 @@ class Appointment {
       examRoom: _str(room['name']) ?? _str(room['code']),
       cancelReason: _str(json['cancelReason']),
       paidAt: _instant(json['paidAt']),
+      deskPaymentChosenAt: _instant(json['deskPaymentChosenAt']),
     );
   }
 
@@ -372,6 +374,9 @@ class Appointment {
   final String? examRoom;
   final String? cancelReason;
   final DateTime? paidAt;
+
+  /// UC-01 step 4: when the patient chose to pay the fee at the desk on the day; null: online.
+  final DateTime? deskPaymentChosenAt;
 
   /// The queue number as it is printed and called: `7` → `07`.
   String get queueLabel =>

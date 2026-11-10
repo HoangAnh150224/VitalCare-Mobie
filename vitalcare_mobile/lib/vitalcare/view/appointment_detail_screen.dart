@@ -28,8 +28,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   ({int id, bool paid, bool online})? _bill;
   bool _onlineOnly = false;
 
-  /// UC-01 step 4: chose to pay at the desk on the day (the fee stays unpaid).
-  bool _payAtDesk = false;
+  /// UC-01 step 4: chose to pay at the desk on the day (the fee stays unpaid); kept on the visit.
+  bool get _payAtDesk => _appointment.deskPaymentChosenAt != null;
   bool _loading = true;
   bool _busy = false;
   bool _changed = false;
@@ -114,6 +114,53 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     }
   }
 
+  /// Asks first, then keeps the choice on the visit; online again needs no asking.
+  Future<void> _choosePayAtDesk(bool atDesk) async {
+    if (atDesk) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Trả phí khám tại quầy?'),
+          content: const Text(
+            'Lượt khám được giữ đến hết giờ tiếp nhận của ngày khám. Bạn cần tới quầy lễ tân trả phí khám '
+            'thì mới vào hàng chờ khám. Quá giờ mà chưa tới sẽ ghi nhận không đến; 3 lần không đến thì '
+            'các lần sau phải thanh toán online.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Không'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Chọn trả tại quầy'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    setState(() => _busy = true);
+    try {
+      final saved = await Api.instance.appointments.payAtDesk(
+        _appointment.id,
+        atDesk: atDesk,
+      );
+      if (!mounted) return;
+      setState(() {
+        _appointment = saved;
+        _changed = true;
+      });
+      if (atDesk) {
+        _notice('Đã chọn trả tại quầy. Vui lòng trả phí khám tại quầy lễ tân khi tới khám.');
+      }
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _paymentSection(ButtonStyle buttonStyle) {
     final bill = _bill;
     if (bill == null || bill.paid) return const SizedBox.shrink();
@@ -131,7 +178,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           style: const TextStyle(fontSize: 13, height: 1.5, color: _muted),
         ),
         const SizedBox(height: 10),
-        if (bill.online)
+        if (bill.online && (!_payAtDesk || !deskAllowed))
           FilledButton.icon(
             onPressed: _busy ? null : _payOnline,
             style: FilledButton.styleFrom(
@@ -147,12 +194,17 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         if (deskAllowed && !_payAtDesk) ...[
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: () => setState(() => _payAtDesk = true),
+            onPressed: _busy ? null : () => _choosePayAtDesk(true),
             style: buttonStyle,
             icon: const Icon(Icons.storefront_outlined, size: 20),
             label: const Text('Trả tại quầy'),
           ),
         ],
+        if (deskAllowed && _payAtDesk && bill.online)
+          TextButton(
+            onPressed: _busy ? null : () => _choosePayAtDesk(false),
+            child: const Text('Đổi sang thanh toán online'),
+          ),
         TextButton(
           onPressed: _busy
               ? null

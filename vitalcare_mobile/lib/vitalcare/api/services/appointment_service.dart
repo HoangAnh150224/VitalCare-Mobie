@@ -54,6 +54,17 @@ class AppointmentService {
     _json(await _client.post('/my_appointments/$id/cancel')),
   );
 
+  /// UC-01 step 4: pays the examination fee at the desk on the day ([atDesk]),
+  /// or online after all. Kept on the visit, so the desk sees it too.
+  Future<Appointment> payAtDesk(int id, {required bool atDesk}) async =>
+      Appointment.fromJson(
+        _json(
+          atDesk
+              ? await _client.put('/my_appointments/$id/desk-payment')
+              : await _client.delete('/my_appointments/$id/desk-payment'),
+        ),
+      );
+
   /// Moves the visit to another day; the clinic keeps the doctor when they
   /// have a turn left, else places it with another. It gets a new number.
   Future<Appointment> reschedule(int id, DateTime date) async =>
