@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api.dart';
+import '../ble/band_link.dart';
 
 /// Shared bits for screens that load from the API: loading, empty and error
 /// blocks in the app's colours, Vietnamese formatting, and opening links.
 
 const _ink = Color(0xFF164E50);
-const _primary = Color(0xFF008C91);
-const _muted = Color(0xFF657E80);
+const _primary = Color(0xFF00777C);
+const _muted = Color(0xFF3E5658);
 
 /// The message to show for any failure.
-String errorText(Object error) =>
-    error is ApiException ? error.message : 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+String errorText(Object error) => switch (error) {
+  ApiException() => error.message,
+  BandException() => error.message,
+  _ => 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+};
 
 void showNotice(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
@@ -20,7 +24,8 @@ void showNotice(BuildContext context, String message) {
     ..showSnackBar(SnackBar(content: Text(message)));
 }
 
-void showError(BuildContext context, Object error) => showNotice(context, errorText(error));
+void showError(BuildContext context, Object error) =>
+    showNotice(context, errorText(error));
 
 class LoadingBlock extends StatelessWidget {
   const LoadingBlock({super.key});
@@ -62,7 +67,11 @@ class ErrorBlock extends StatelessWidget {
 }
 
 class EmptyBlock extends StatelessWidget {
-  const EmptyBlock({super.key, required this.message, this.icon = Icons.inbox_outlined});
+  const EmptyBlock({
+    super.key,
+    required this.message,
+    this.icon = Icons.inbox_outlined,
+  });
 
   final String message;
   final IconData icon;
@@ -110,7 +119,9 @@ String relativeTime(DateTime time) => '${relativeDay(time)} ${clockTime(time)}';
 /// A decimal with a Vietnamese comma: `33.4` → `33,4`; whole numbers stay whole.
 String decimal(double value, {int digits = 1}) {
   final whole = value == value.roundToDouble();
-  return value.toStringAsFixed(whole && digits <= 1 ? 0 : digits).replaceAll('.', ',');
+  return value
+      .toStringAsFixed(whole && digits <= 1 ? 0 : digits)
+      .replaceAll('.', ',');
 }
 
 /// How long ago, for list subtitles.
@@ -137,5 +148,7 @@ Future<void> openExternal(BuildContext context, Uri url) async {
   }
 }
 
-Future<void> callPhone(BuildContext context, String phone) =>
-    openExternal(context, Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^\d+]'), '')));
+Future<void> callPhone(BuildContext context, String phone) => openExternal(
+  context,
+  Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^\d+]'), '')),
+);

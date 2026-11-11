@@ -10,6 +10,17 @@ void main() {
 /// Lets the API client send the user back to the login screen from anywhere.
 final navigatorKey = GlobalKey<NavigatorState>();
 
+/// The largest system text size the app follows. People who raise it still get bigger text, up to
+/// one and a half times; past that, phone layouts stop fitting and every screen would need its own
+/// fallback. Shared with the responsive test so it checks what the app really draws.
+const maxTextScale = 1.5;
+
+Widget clampTextScale(BuildContext context, Widget? child) =>
+    MediaQuery.withClampedTextScaling(
+      maxScaleFactor: maxTextScale,
+      child: child ?? const SizedBox.shrink(),
+    );
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -52,10 +63,11 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF008BA8),
-        ).copyWith(primary: const Color(0xFF008BA8)),
+          seedColor: const Color(0xFF00777C),
+        ).copyWith(primary: const Color(0xFF00777C)),
         scaffoldBackgroundColor: Colors.white,
       ),
+      builder: clampTextScale,
       home: const SplashScreen(),
     );
   }

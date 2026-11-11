@@ -167,7 +167,24 @@ const List<(String, String)> _messages = [
     'Too many codes have been requested from this network',
     'Đã yêu cầu quá nhiều mã từ mạng này. Vui lòng thử lại sau.',
   ),
-  ('Too many codes', 'Đã gửi quá nhiều mã tới số này. Vui lòng thử lại sau.'),
+  (
+    'Too many codes',
+    'Đã gửi quá nhiều mã tới số này. Số này tạm khóa nhận mã trong 24 giờ.',
+  ),
+  // Registering an account (RegistrationServiceImpl)
+  (
+    'Phone number cannot be all zeros',
+    'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại di động Việt Nam đang sử dụng.',
+  ),
+  ('Full name is required', 'Vui lòng nhập họ và tên.'),
+  (
+    'Full name must contain at least 2 characters',
+    'Họ và tên phải có ít nhất 2 ký tự.',
+  ),
+  (
+    'Pick one of the profiles shown',
+    'Vui lòng chọn một trong các hồ sơ được liệt kê.',
+  ),
   // Registering a visit (AppointmentServiceImpl)
   ('Pick one of your own profiles', 'Vui lòng chọn một hồ sơ của bạn.'),
   (

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api.dart';
 import 'common.dart';
@@ -17,13 +18,18 @@ class AppointmentDetailScreen extends StatefulWidget {
 
 class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
 
   late Appointment _appointment = widget.appointment;
   AppointmentQueue? _queue;
   VisitResult? _result;
   String? _clinicPhone;
+  ({int id, bool paid, bool online})? _bill;
+  bool _onlineOnly = false;
+
+  /// UC-01 step 4: chose to pay at the desk on the day (the fee stays unpaid); kept on the visit.
+  bool get _payAtDesk => _appointment.deskPaymentChosenAt != null;
   bool _loading = true;
   bool _busy = false;
   bool _changed = false;
@@ -46,11 +52,24 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final appointment = _appointment;
     await Future.wait([
       if (appointment.status.isActive &&
-          appointment.status != AppointmentStatus.scheduled)
+          appointment.status != AppointmentStatus.booked)
         api
             .queue(appointment.id)
             .then((q) => _queue = q)
             .catchError((Object _) => const AppointmentQueue()),
+      // The fee is paid before the queue (BF-02): online now, or at the desk on the day.
+      if (appointment.status == AppointmentStatus.booked ||
+          appointment.status == AppointmentStatus.checkedIn ||
+          appointment.status == AppointmentStatus.readyForExamination) ...[
+        api
+            .examBill(appointment.id)
+            .then((bill) => _bill = bill)
+            .catchError((Object _) => null),
+        api
+            .onlinePaymentRequired()
+            .then((required) => _onlineOnly = required)
+            .catchError((Object _) => false),
+      ],
       if (appointment.status == AppointmentStatus.completed)
         api
             .result(appointment.id)
@@ -72,6 +91,132 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   }
 
   void _notice(String message) => showNotice(context, message);
+
+  /// VNPay in the browser; back in the app, "Tải lại" shows whether it went through.
+  Future<void> _payOnline() async {
+    final bill = _bill;
+    if (bill == null) return;
+    setState(() => _busy = true);
+    try {
+      final url = await Api.instance.appointments.vnpayUrl(bill.id);
+      final opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        _notice('Không mở được trang thanh toán. Vui lòng thử lại.');
+      }
+    } catch (e) {
+      // A refused or failed payment can be tried again, or paid at the desk (UC-01 A2).
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Asks first, then keeps the choice on the visit; online again needs no asking.
+  Future<void> _choosePayAtDesk(bool atDesk) async {
+    if (atDesk) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Trả phí khám tại quầy?'),
+          content: const Text(
+            'Lượt khám được giữ đến hết giờ tiếp nhận của ngày khám. Bạn cần tới quầy lễ tân trả phí khám '
+            'thì mới vào hàng chờ khám. Quá giờ mà chưa tới sẽ ghi nhận không đến; 3 lần không đến thì '
+            'các lần sau phải thanh toán online.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Không'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Chọn trả tại quầy'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    setState(() => _busy = true);
+    try {
+      final saved = await Api.instance.appointments.payAtDesk(
+        _appointment.id,
+        atDesk: atDesk,
+      );
+      if (!mounted) return;
+      setState(() {
+        _appointment = saved;
+        _changed = true;
+      });
+      if (atDesk) {
+        _notice('Đã chọn trả tại quầy. Vui lòng trả phí khám tại quầy lễ tân khi tới khám.');
+      }
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _paymentSection(ButtonStyle buttonStyle) {
+    final bill = _bill;
+    if (bill == null || bill.paid) return const SizedBox.shrink();
+    final deskAllowed = !_onlineOnly;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 12),
+        Text(
+          _onlineOnly
+              ? 'Tài khoản đã 3 lần không đến khám nên cần thanh toán phí khám online trước khi tới khám.'
+              : _payAtDesk
+              ? 'Bạn sẽ trả phí khám tại quầy khi tới khám. Lượt khám được giữ đến hết giờ tiếp nhận của ngày khám.'
+              : 'Chọn cách thanh toán phí khám: online ngay, hoặc tại quầy khi tới khám.',
+          style: const TextStyle(fontSize: 13, height: 1.5, color: _muted),
+        ),
+        const SizedBox(height: 10),
+        if (bill.online && (!_payAtDesk || !deskAllowed))
+          FilledButton.icon(
+            onPressed: _busy ? null : _payOnline,
+            style: FilledButton.styleFrom(
+              backgroundColor: _primary,
+              minimumSize: const Size.fromHeight(54),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            icon: const Icon(Icons.credit_card_rounded, size: 20),
+            label: const Text('Thanh toán online (VNPay)'),
+          ),
+        if (deskAllowed && !_payAtDesk) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : () => _choosePayAtDesk(true),
+            style: buttonStyle,
+            icon: const Icon(Icons.storefront_outlined, size: 20),
+            label: const Text('Trả tại quầy'),
+          ),
+        ],
+        if (deskAllowed && _payAtDesk && bill.online)
+          TextButton(
+            onPressed: _busy ? null : () => _choosePayAtDesk(false),
+            child: const Text('Đổi sang thanh toán online'),
+          ),
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () {
+                  setState(() => _loading = true);
+                  _load();
+                },
+          child: const Text('Đã thanh toán? Tải lại'),
+        ),
+      ],
+    );
+  }
 
   Future<void> _contact() async {
     final phone = _clinicPhone;
@@ -200,12 +345,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         ? ''
         : ' · dự kiến ${appointment.startTime}';
     final result = _result;
-    final changeable = appointment.status == AppointmentStatus.scheduled;
+    final changeable = appointment.status == AppointmentStatus.booked;
     final buttonStyle = OutlinedButton.styleFrom(
       foregroundColor: _primary,
       backgroundColor: Colors.white,
       minimumSize: const Size.fromHeight(54),
-      side: const BorderSide(color: Color(0xFFCCDADC)),
+      side: const BorderSide(color: Color(0xFFA9C1BE)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     );
     return PopScope<bool>(
@@ -262,7 +407,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  appointment.doctorName ?? 'Bác sĩ: xếp khi gọi vào phòng',
+                                  appointment.doctorName ??
+                                      'Bác sĩ: xếp khi gọi vào phòng',
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
@@ -295,7 +441,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE0ECE9)),
+                          border: Border.all(color: const Color(0xFFBDD3CE)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -307,6 +453,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                               '$date · Số ${appointment.queueLabel}$expected',
                             ),
                             _field('Trạng thái', appointment.status.label),
+                            if (_bill != null)
+                              _field(
+                                'Phí khám',
+                                _bill!.paid
+                                    ? 'Đã thanh toán'
+                                    : 'Chưa thanh toán',
+                              ),
                             if (_queueText != null)
                               _field('Hàng chờ hôm nay', _queueText!),
                             if (appointment.examRoom != null)
@@ -330,6 +483,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                           ],
                         ),
                       ),
+                      _paymentSection(buttonStyle),
                       const SizedBox(height: 22),
                       OutlinedButton.icon(
                         onPressed: _contact,

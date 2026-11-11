@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api/api.dart';
+import '../ble/band_link.dart';
 import 'common.dart';
+import 'measurement_result_screen.dart';
 import 'measuring_screen.dart';
 
 class MeasurementScreen extends StatefulWidget {
@@ -11,20 +13,85 @@ class MeasurementScreen extends StatefulWidget {
   State<MeasurementScreen> createState() => _MeasurementScreenState();
 }
 
-/// The device card shows the band assigned to the patient (`/my_devices`).
+/// The device card shows the band assigned to the patient (`/my_devices`);
+/// the phone connects to it over Bluetooth, pairs with it, and syncs it.
 class _MeasurementScreenState extends State<MeasurementScreen> {
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
 
   MyDevice? _device;
   bool _loading = true;
   Object? _error;
+  BandLink? _link;
+  bool _busy = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _link?.status.removeListener(_onStatus);
+    _link?.connected.removeListener(_onStatus);
+    _link?.disconnect();
+    super.dispose();
+  }
+
+  void _onStatus() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _connected => _link?.connected.value == true;
+
+  /// Finds the band over Bluetooth, then pairs this phone with it.
+  Future<void> _connect() async {
+    final device = _device;
+    if (device == null || _busy) return;
+    setState(() => _busy = true);
+    BandLink? link;
+    try {
+      _link?.status.removeListener(_onStatus);
+      _link?.connected.removeListener(_onStatus);
+      await _link?.disconnect();
+      _link = null;
+      link = await BandLink.connect(device.deviceCode);
+      final paired = device.pairedWithMe
+          ? device
+          : await Api.instance.devices.pair(device.deviceCode);
+      if (!mounted) {
+        await link.disconnect();
+        return;
+      }
+      link.status.addListener(_onStatus);
+      link.connected.addListener(_onStatus);
+      setState(() {
+        _device = paired;
+        _link = link;
+      });
+    } catch (e) {
+      await link?.disconnect();
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sync() async {
+    final link = _link;
+    final device = _device;
+    if (link == null || device == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final summary = await syncBand(link, device.deviceCode);
+      if (mounted) showNotice(context, syncSummaryText(summary));
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _load() async {
@@ -60,6 +127,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     if (_error != null) return errorText(_error!);
     final device = _device;
     if (device == null) return 'Chưa được giao thiết bị';
+    if (_connected) return 'Đã kết nối qua Bluetooth';
     final seen = device.lastSeenAt == null
         ? ''
         : ' · ${ago(device.lastSeenAt!)}';
@@ -70,17 +138,89 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     final device = _device;
     if (_loading) return 'Đang kiểm tra thiết bị.';
     if (device == null) {
-      return 'Bạn chưa được phòng khám giao thiết bị đo.';
+      return 'Bạn chưa được gán thiết bị đo. Liên hệ phòng khám để được cấp thiết bị.';
     }
-    return device.online
-        ? 'Bạn đã sẵn sàng đo.'
-        : 'Thiết bị đang mất kết nối. Hãy đeo thiết bị và kiểm tra pin.';
+    if (_busy && !_connected) return 'Đang tìm thiết bị đo...';
+    if (!_connected) {
+      return 'Bật thiết bị đo, để gần điện thoại rồi bấm Kết nối.';
+    }
+    final pending = _link!.status.value?.pendingSegments ?? 0;
+    return pending > 0
+        ? 'Bạn đã sẵn sàng đo. Thiết bị còn $pending phần dữ liệu chưa đồng bộ.'
+        : 'Bạn đã sẵn sàng đo.';
   }
 
+  int? get _battery => _connected
+      ? _link!.status.value?.battery ?? _device?.batteryLevel
+      : _device?.batteryLevel;
+
   void _startMeasurement() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const MeasuringScreen()));
+    final link = _link;
+    final device = _device;
+    if (link == null || device == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            MeasuringScreen(link: link, deviceCode: device.deviceCode),
+      ),
+    );
+  }
+
+  ButtonStyle get _filled => FilledButton.styleFrom(
+    backgroundColor: _primary,
+    foregroundColor: Colors.white,
+    minimumSize: const Size.fromHeight(56),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+  );
+
+  static const _label = TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
+
+  static const _spinner = SizedBox.square(
+    dimension: 20,
+    child: CircularProgressIndicator(strokeWidth: 2),
+  );
+
+  List<Widget> get _actions {
+    if (_device == null) return const [];
+    if (!_connected) {
+      return [
+        FilledButton.icon(
+          onPressed: _busy ? null : _connect,
+          style: _filled,
+          icon: _busy
+              ? _spinner
+              : const Icon(Icons.bluetooth_rounded, size: 22),
+          label: const Text('Kết nối', style: _label),
+        ),
+      ];
+    }
+    return [
+      FilledButton.icon(
+        onPressed: _busy ? null : _startMeasurement,
+        style: _filled,
+        icon: const Icon(Icons.monitor_heart_outlined, size: 22),
+        label: const Text('Bắt đầu đo', style: _label),
+      ),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(
+        onPressed: _busy ? null : _sync,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _primary,
+          backgroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(54),
+          side: const BorderSide(color: Color(0xFFA9C1BE)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: _busy ? _spinner : const Icon(Icons.sync_rounded, size: 22),
+        label: const Text(
+          'Đồng bộ dữ liệu',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ];
   }
 
   Widget _metric(String label, IconData icon, Color color) {
@@ -90,7 +230,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0ECE9)),
+          border: Border.all(color: const Color(0xFFBDD3CE)),
         ),
         child: Column(
           children: [
@@ -254,7 +394,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                                           ),
                                         ),
                                       ),
-                                      if (_device?.batteryLevel != null) ...[
+                                      if (_battery != null) ...[
                                         const SizedBox(height: 8),
                                         Row(
                                           children: [
@@ -265,7 +405,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              'Pin ${_device!.batteryLevel}%',
+                                              'Pin $_battery%',
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 color: _muted,
@@ -289,7 +429,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                             Row(
                               children: [
                                 Icon(
-                                  _device?.online == true
+                                  _connected
                                       ? Icons.check_circle_outline_rounded
                                       : Icons.info_outline_rounded,
                                   color: _primary,
@@ -326,19 +466,19 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                           _metric(
                             'SpO₂',
                             Icons.water_drop_outlined,
-                            const Color(0xFF298CAB),
+                            const Color(0xFF1F6F8A),
                           ),
                           const SizedBox(width: 10),
                           _metric(
                             'Nhịp tim',
                             Icons.favorite_border_rounded,
-                            const Color(0xFFD0767F),
+                            const Color(0xFFB23A48),
                           ),
                           const SizedBox(width: 10),
                           _metric(
-                            'Nhiệt độ da',
+                            'Nhiệt độ cơ thể',
                             Icons.thermostat_rounded,
-                            const Color(0xFFC28B3A),
+                            const Color(0xFF8A5A12),
                           ),
                         ],
                       ),
@@ -368,32 +508,7 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
                         'Hạn chế cử động cho đến khi đo hoàn tất.',
                       ),
                       const SizedBox(height: 20),
-                      FilledButton.icon(
-                        onPressed: _startMeasurement,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _primary,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(56),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.monitor_heart_outlined,
-                          size: 22,
-                        ),
-                        label: const Text(
-                          'Bắt đầu đo',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      ..._actions,
                     ],
                   ),
                 ),

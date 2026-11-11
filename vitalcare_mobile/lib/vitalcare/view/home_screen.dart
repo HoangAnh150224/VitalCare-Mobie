@@ -11,6 +11,7 @@ import 'messages_view.dart';
 import 'profile_view.dart';
 import 'first_aid_screen.dart';
 import 'exam_registration_screen.dart';
+import 'appointment_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -72,11 +73,17 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       'Đã đăng ký khám. Số thứ tự của bạn: ${appointment.queueLabel}.',
     );
+    // UC-01 steps 4–8: the confirmation, where the fee is paid online or left for the desk.
+    await Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => AppointmentDetailScreen(appointment: appointment),
+      ),
+    );
   }
 
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
 
   void _showRegistrationOptions() {
     showModalBottomSheet<void>(
@@ -232,7 +239,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _open(
       Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: view,
+        // The tab views leave the bottom edge to the tab bar; opened on their own there is none, so
+        // the phone's home indicator would sit over the last item.
+        body: SafeArea(top: false, child: view),
       ),
     );
   }
@@ -249,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE0ECE9)),
+        border: Border.all(color: const Color(0xFFBDD3CE)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,12 +271,17 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 14),
           Text(label, style: const TextStyle(color: _muted, fontSize: 13)),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: _ink,
+          // The number shrinks to fit its card rather than breaking mid-value on a narrow phone.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: _ink,
+              ),
             ),
           ),
           Text(unit, style: const TextStyle(color: _muted, fontSize: 12)),
@@ -367,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           latest?.spo2 == null ? '--' : decimal(latest!.spo2!),
                           '%',
                           Icons.water_drop_outlined,
-                          const Color(0xFF008C91),
+                          const Color(0xFF00777C),
                         ),
                         _metric(
                           'Nhịp tim',
@@ -377,13 +391,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Color(0xFFE56B7A),
                         ),
                         _metric(
-                          'Nhiệt độ da',
-                          latest?.skinTemperature == null
+                          latest?.bodyTemperature != null
+                              ? 'Nhiệt độ cơ thể'
+                              : 'Nhiệt độ da',
+                          latest?.bodyTemperature != null
+                              ? decimal(latest!.bodyTemperature!)
+                              : latest?.skinTemperature == null
                               ? '--'
                               : decimal(latest!.skinTemperature!),
                           '°C',
                           Icons.thermostat_outlined,
-                          const Color(0xFFE4A03B),
+                          const Color(0xFFC27A12),
                         ),
                       ];
                       final stacked =

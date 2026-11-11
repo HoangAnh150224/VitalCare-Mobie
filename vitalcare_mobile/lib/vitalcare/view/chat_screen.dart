@@ -32,8 +32,8 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
   static const _pollEvery = Duration(seconds: 10);
   final _text = TextEditingController();
   final _scroll = ScrollController();
@@ -177,6 +177,14 @@ class _ChatScreenState extends State<ChatScreen> {
   void _attach() =>
       showNotice(context, 'Chức năng chọn và tải ảnh chưa được tích hợp.');
 
+  /// Little height left for the conversation: a small phone, a phone on its side, or the keyboard
+  /// up. The guidance line and the composer's label go, and the composer becomes one row, so the
+  /// messages keep the room.
+  bool _compact(BuildContext context) =>
+      MediaQuery.sizeOf(context).height -
+          MediaQuery.viewInsetsOf(context).bottom <
+      600;
+
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF6FBF9),
@@ -201,7 +209,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
                 decoration: const BoxDecoration(
                   color: Color(0xFFEEF9F6),
-                  border: Border(bottom: BorderSide(color: Color(0xFFE0ECE9))),
+                  border: Border(bottom: BorderSide(color: Color(0xFFBDD3CE))),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,15 +224,17 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: _ink,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Tin nhắn được gửi tới nhân viên phòng khám. Khi khẩn cấp, hãy gọi 115.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.5,
-                        color: _muted,
+                    if (!_compact(context)) ...[
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Tin nhắn được gửi tới nhân viên phòng khám. Khi khẩn cấp, hãy gọi 115.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: _muted,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -316,31 +326,54 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
               ),
               Container(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
+                padding: _compact(context)
+                    ? const EdgeInsets.fromLTRB(12, 8, 12, 8)
+                    : const EdgeInsets.fromLTRB(18, 12, 18, 16),
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFE0ECE9))),
+                  border: Border(top: BorderSide(color: Color(0xFFBDD3CE))),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Tin nhắn',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _ink,
+                    if (!_compact(context)) ...[
+                      const Text(
+                        'Tin nhắn',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _ink,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 8),
+                    ],
                     TextField(
                       controller: _text,
                       onChanged: (_) => setState(() {}),
                       minLines: 1,
-                      maxLines: 3,
+                      maxLines: _compact(context) ? 2 : 3,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: InputDecoration(
                         hintText: 'Nhập tin nhắn...',
+                        // Compact: attach and send sit inside the field instead of a row of buttons.
+                        prefixIcon: _compact(context)
+                            ? IconButton(
+                                onPressed: _attach,
+                                tooltip: 'Đính kèm ảnh',
+                                color: _primary,
+                                icon: const Icon(Icons.image_outlined),
+                              )
+                            : null,
+                        suffixIcon: _compact(context)
+                            ? IconButton(
+                                onPressed: _text.text.trim().isEmpty || _sending
+                                    ? null
+                                    : _send,
+                                tooltip: 'Gửi',
+                                color: _primary,
+                                icon: const Icon(Icons.send_rounded),
+                              )
+                            : null,
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.all(14),
@@ -350,7 +383,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: const BorderSide(
-                            color: Color(0xFFCCDADC),
+                            color: Color(0xFFA9C1BE),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -362,44 +395,48 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _attach,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _primary,
-                              minimumSize: const Size.fromHeight(48),
-                              side: const BorderSide(color: Color(0xFFCCDADC)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                    if (!_compact(context)) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _attach,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _primary,
+                                minimumSize: const Size.fromHeight(48),
+                                side: const BorderSide(
+                                  color: Color(0xFFA9C1BE),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
+                              icon: const Icon(Icons.image_outlined, size: 19),
+                              label: const Text('Đính kèm ảnh'),
                             ),
-                            icon: const Icon(Icons.image_outlined, size: 19),
-                            label: const Text('Đính kèm ảnh'),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: _text.text.trim().isEmpty || _sending
-                                ? null
-                                : _send,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _primary,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(48),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: _text.text.trim().isEmpty || _sending
+                                  ? null
+                                  : _send,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _primary,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
+                              icon: const Icon(Icons.send_rounded, size: 18),
+                              label: Text(_sending ? 'Đang gửi' : 'Gửi'),
                             ),
-                            icon: const Icon(Icons.send_rounded, size: 18),
-                            label: Text(_sending ? 'Đang gửi' : 'Gửi'),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

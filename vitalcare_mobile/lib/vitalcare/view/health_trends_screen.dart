@@ -16,9 +16,9 @@ class HealthTrendsScreen extends StatefulWidget {
 
 class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _teal = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
-  static const _labels = ['SpO₂', 'Nhịp tim', 'Nhiệt độ da'];
+  static const _teal = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
+  static const _labels = ['SpO₂', 'Nhịp tim', 'Nhiệt độ'];
   static const _units = ['%', 'bpm', '°C'];
   static const _metrics = [
     VitalMetric.spo2,
@@ -59,8 +59,20 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
     }
   }
 
+  /// Body temperature when the band sent it, skin temperature otherwise.
+  List<(DateTime, double)> get _bodySeries => [
+    for (final point in _trend?.points ?? const <TrendPoint>[])
+      if (point.bodyTemperatureAvg != null)
+        (point.at, point.bodyTemperatureAvg!),
+  ];
+  bool get _body => _metric == 2 && _bodySeries.isNotEmpty;
   List<(DateTime, double)> get _series =>
-      _trend?.series(_metrics[_metric]) ?? const [];
+      _body ? _bodySeries : _trend?.series(_metrics[_metric]) ?? const [];
+  String get _label => _metric != 2
+      ? _labels[_metric]
+      : _body
+      ? 'Nhiệt độ cơ thể'
+      : 'Nhiệt độ da';
   String _number(double value) => value
       .toStringAsFixed(_metric == 2 || value != value.roundToDouble() ? 1 : 0)
       .replaceAll('.', ',');
@@ -89,7 +101,7 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
       foregroundColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected) ? Colors.white : _ink,
       ),
-      side: const WidgetStatePropertyAll(BorderSide(color: Color(0xFFCCDADC))),
+      side: const WidgetStatePropertyAll(BorderSide(color: Color(0xFFA9C1BE))),
       textStyle: const WidgetStatePropertyAll(
         TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
@@ -101,7 +113,7 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE0ECE9)),
+      border: Border.all(color: const Color(0xFFBDD3CE)),
     ),
     child: child,
   );
@@ -134,8 +146,7 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
         }
 
         return Semantics(
-          label:
-              'Biểu đồ ${_labels[_metric]}, $_days ngày. Vuốt hoặc chạm để chọn ngày.',
+          label: 'Biểu đồ $_label, $_days ngày. Vuốt hoặc chạm để chọn ngày.',
           value: _selected == null
               ? null
               : '${_date(_selected!)}: ${_number(values[_selected!])} ${_units[_metric]}',
@@ -225,7 +236,7 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            '${_labels[_metric]} (${_units[_metric]}) · $_days ngày gần đây',
+                            '$_label (${_units[_metric]}) · $_days ngày gần đây',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -241,30 +252,25 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                           _chart(values),
                           if (values.length >= 2) ...[
                             const SizedBox(height: 12),
+                            // A third of the width each, so a long date wraps instead of
+                            // pushing the row past a narrow screen.
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  _date(0),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: _muted,
+                                for (final (text, align) in [
+                                  (_date(0), TextAlign.start),
+                                  (_date(values.length ~/ 2), TextAlign.center),
+                                  (relativeDay(series.last.$1), TextAlign.end),
+                                ])
+                                  Expanded(
+                                    child: Text(
+                                      text,
+                                      textAlign: align,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: _muted,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  _date(values.length ~/ 2),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: _muted,
-                                  ),
-                                ),
-                                Text(
-                                  relativeDay(series.last.$1),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: _muted,
-                                  ),
-                                ),
                               ],
                             ),
                           ],
@@ -272,7 +278,7 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                               _selected! < values.length) ...[
                             const SizedBox(height: 16),
                             Text(
-                              '${_date(_selected!)} · ${_labels[_metric]}: ${_number(values[_selected!])} ${_units[_metric]}',
+                              '${_date(_selected!)} · $_label: ${_number(values[_selected!])} ${_units[_metric]}',
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
@@ -339,7 +345,7 @@ class _HealthTrendsScreenState extends State<HealthTrendsScreen> {
                         foregroundColor: _teal,
                         backgroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(54),
-                        side: const BorderSide(color: Color(0xFFCCDADC)),
+                        side: const BorderSide(color: Color(0xFFA9C1BE)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -393,7 +399,7 @@ class _TrendPainter extends CustomPainter {
           text: (max - (max - min) * i / 2)
               .toStringAsFixed(metric == 2 ? 1 : 0)
               .replaceAll('.', ','),
-          style: const TextStyle(fontSize: 10, color: Color(0xFF657E80)),
+          style: const TextStyle(fontSize: 10, color: Color(0xFF3E5658)),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -426,13 +432,13 @@ class _TrendPainter extends CustomPainter {
     canvas.drawPath(
       line,
       Paint()
-        ..color = const Color(0xFF008C91)
+        ..color = const Color(0xFF00777C)
         ..strokeWidth = 2.5
         ..style = PaintingStyle.stroke
         ..strokeJoin = StrokeJoin.round,
     );
     for (final p in points) {
-      canvas.drawCircle(p, 2.5, Paint()..color = const Color(0xFF008C91));
+      canvas.drawCircle(p, 2.5, Paint()..color = const Color(0xFF00777C));
     }
     if (selected != null) {
       final point = points[selected!];
@@ -442,7 +448,7 @@ class _TrendPainter extends CustomPainter {
         Paint()..color = const Color(0x66008C91),
       );
       canvas.drawCircle(point, 7, Paint()..color = Colors.white);
-      canvas.drawCircle(point, 5, Paint()..color = const Color(0xFF008C91));
+      canvas.drawCircle(point, 5, Paint()..color = const Color(0xFF00777C));
     }
   }
 

@@ -240,11 +240,36 @@ class Doctor {
       : '$professionalTitle $fullName';
 }
 
+/// A profile the clinic already has with the number being registered, as the
+/// person registering may see it (BR-14): masked name, birth year only.
+class ProfileMatch {
+  const ProfileMatch({
+    required this.id,
+    required this.maskedName,
+    this.birthYear,
+  });
+
+  final int id;
+  final String maskedName;
+  final int? birthYear;
+
+  /// "Nguyễn V*** A – 1985".
+  String get label =>
+      birthYear == null ? maskedName : '$maskedName – $birthYear';
+
+  factory ProfileMatch.fromJson(Json json) => ProfileMatch(
+    id: _int(json['id']) ?? 0,
+    maskedName: _str(json['maskedName']) ?? '***',
+    birthYear: _int(json['birthYear']),
+  );
+}
+
 // ---- appointments ---------------------------------------------------------
 
 enum AppointmentStatus {
-  scheduled('Đã đăng ký'),
-  checkedIn('Đã tiếp nhận'),
+  booked('Đã đặt lịch'),
+  checkedIn('Đã check-in, chờ thanh toán'),
+  readyForExamination('Đang chờ khám'),
   inExam('Đang khám'),
   awaitingResults('Đang làm chỉ định'),
   completed('Hoàn tất'),
@@ -256,8 +281,10 @@ enum AppointmentStatus {
   final String label;
 
   static AppointmentStatus parse(Object? value) => switch (value) {
-    'scheduled' => scheduled,
+    // 'scheduled' is the name before the booking spec, from an older server.
+    'booked' || 'scheduled' => booked,
     'checked_in' => checkedIn,
+    'ready_for_examination' => readyForExamination,
     'in_exam' => inExam,
     'awaiting_results' => awaitingResults,
     'completed' => completed,
@@ -268,8 +295,9 @@ enum AppointmentStatus {
 
   /// Registered or under way: the visit has not ended.
   bool get isActive =>
-      this == scheduled ||
+      this == booked ||
       this == checkedIn ||
+      this == readyForExamination ||
       this == inExam ||
       this == awaitingResults;
 }
@@ -295,6 +323,7 @@ class Appointment {
     this.examRoom,
     this.cancelReason,
     this.paidAt,
+    this.deskPaymentChosenAt,
   });
 
   factory Appointment.fromJson(Json json) {
@@ -321,6 +350,7 @@ class Appointment {
       examRoom: _str(room['name']) ?? _str(room['code']),
       cancelReason: _str(json['cancelReason']),
       paidAt: _instant(json['paidAt']),
+      deskPaymentChosenAt: _instant(json['deskPaymentChosenAt']),
     );
   }
 
@@ -344,6 +374,9 @@ class Appointment {
   final String? examRoom;
   final String? cancelReason;
   final DateTime? paidAt;
+
+  /// UC-01 step 4: when the patient chose to pay the fee at the desk on the day; null: online.
+  final DateTime? deskPaymentChosenAt;
 
   /// The queue number as it is printed and called: `7` → `07`.
   String get queueLabel =>
@@ -419,6 +452,8 @@ class VitalLatest {
     this.spo2At,
     this.skinTemperature,
     this.skinTemperatureAt,
+    this.bodyTemperature,
+    this.bodyTemperatureAt,
     this.lastMeasuredAt,
     this.readings24h = 0,
   });
@@ -430,6 +465,8 @@ class VitalLatest {
     spo2At: _instant(json['spo2At']),
     skinTemperature: _double(json['skinTemperature']),
     skinTemperatureAt: _instant(json['skinTemperatureAt']),
+    bodyTemperature: _double(json['bodyTemperature']),
+    bodyTemperatureAt: _instant(json['bodyTemperatureAt']),
     lastMeasuredAt: _instant(json['lastMeasuredAt']),
     readings24h: _int(json['readings24h']) ?? 0,
   );
@@ -440,11 +477,18 @@ class VitalLatest {
   final DateTime? spo2At;
   final double? skinTemperature;
   final DateTime? skinTemperatureAt;
+
+  /// Estimated from skin temperature by the band (°C).
+  final double? bodyTemperature;
+  final DateTime? bodyTemperatureAt;
   final DateTime? lastMeasuredAt;
   final int readings24h;
 
   bool get isEmpty =>
-      heartRate == null && spo2 == null && skinTemperature == null;
+      heartRate == null &&
+      spo2 == null &&
+      skinTemperature == null &&
+      bodyTemperature == null;
 }
 
 class VitalReading {
@@ -454,6 +498,7 @@ class VitalReading {
     this.heartRate,
     this.spo2,
     this.skinTemperature,
+    this.bodyTemperature,
     this.deviceCode,
   });
 
@@ -464,6 +509,7 @@ class VitalReading {
     heartRate: _int(json['heartRate']),
     spo2: _double(json['spo2']),
     skinTemperature: _double(json['skinTemperature']),
+    bodyTemperature: _double(json['bodyTemperature']),
     deviceCode: _str(json['deviceCode']),
   );
 
@@ -472,6 +518,7 @@ class VitalReading {
   final int? heartRate;
   final double? spo2;
   final double? skinTemperature;
+  final double? bodyTemperature;
   final String? deviceCode;
 }
 
@@ -485,6 +532,7 @@ class TrendPoint {
     this.heartRateAvg,
     this.spo2Avg,
     this.skinTemperatureAvg,
+    this.bodyTemperatureAvg,
   });
 
   factory TrendPoint.fromJson(Json json) => TrendPoint(
@@ -496,6 +544,7 @@ class TrendPoint {
     heartRateAvg: _double(json['heartRateAvg']),
     spo2Avg: _double(json['spo2Avg']),
     skinTemperatureAvg: _double(json['skinTemperatureAvg']),
+    bodyTemperatureAvg: _double(json['bodyTemperatureAvg']),
   );
 
   final DateTime at;
@@ -503,6 +552,7 @@ class TrendPoint {
   final double? heartRateAvg;
   final double? spo2Avg;
   final double? skinTemperatureAvg;
+  final double? bodyTemperatureAvg;
 
   double? value(VitalMetric metric) => switch (metric) {
     VitalMetric.spo2 => spo2Avg,
@@ -594,6 +644,7 @@ class DeviceReading {
     this.spo2,
     this.heartRate,
     this.skinTemperature,
+    this.bodyTemperature,
   });
 
   final String clientRecordId;
@@ -601,6 +652,7 @@ class DeviceReading {
   final double? spo2;
   final int? heartRate;
   final double? skinTemperature;
+  final double? bodyTemperature;
 
   Json toJson() => {
     'clientRecordId': clientRecordId,
@@ -608,6 +660,7 @@ class DeviceReading {
     'spo2': ?spo2,
     'heartRate': ?heartRate,
     'skinTemperature': ?skinTemperature,
+    'bodyTemperature': ?bodyTemperature,
   };
 }
 

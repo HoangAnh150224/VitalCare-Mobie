@@ -20,7 +20,7 @@ void main() {
       'startTime': '08:30:00',
       'endTime': '08:45:00',
       'reason': 'Khám định kỳ',
-      'status': 'checked_in',
+      'status': 'ready_for_examination',
       'note': null,
       'examRoom': {'id': 2, 'code': 'P02', 'name': null},
       'paidAt': '2026-11-05T01:10:00Z',
@@ -28,8 +28,10 @@ void main() {
     });
 
     expect(appointment.id, 12);
-    expect(appointment.status, AppointmentStatus.checkedIn);
-    expect(appointment.status.label, 'Đã tiếp nhận');
+    expect(appointment.status, AppointmentStatus.readyForExamination);
+    expect(appointment.status.label, 'Đang chờ khám');
+    // A server from before the booking spec still says 'scheduled'.
+    expect(AppointmentStatus.parse('scheduled'), AppointmentStatus.booked);
     expect(appointment.patientName, 'Trần Thu Trang');
     expect(appointment.clinicName, 'Phòng khám Hòa Bình');
     expect(appointment.doctorName, 'Nguyễn Văn An');

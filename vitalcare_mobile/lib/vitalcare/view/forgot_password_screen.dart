@@ -14,9 +14,9 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _link = Color(0xFF007C80);
+  static const _link = Color(0xFF00777C);
   bool _busy = false;
   String? _phoneError;
 
@@ -101,24 +101,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         children: [
                           Align(
                             alignment: Alignment.center,
-                            child: Container(
-                              width: 104,
-                              height: 104,
-                              clipBehavior: Clip.antiAlias,
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFFE1EDEA),
+                            // Smaller on a phone on its side, where the full-size logo takes a third of the height.
+                            child: SizedBox.square(
+                              dimension: MediaQuery.sizeOf(context).height < 500
+                                  ? 64
+                                  : 104,
+                              child: FittedBox(
+                                child: Container(
+                                  width: 104,
+                                  height: 104,
+                                  clipBehavior: Clip.antiAlias,
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFFE1EDEA),
+                                    ),
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/logo.jpg',
+                                    height: 80,
+                                    width: 88,
+                                    fit: BoxFit.contain,
+                                    semanticLabel: 'VitalCare',
+                                  ),
                                 ),
-                              ),
-                              child: Image.asset(
-                                'assets/images/logo.jpg',
-                                height: 80,
-                                width: 88,
-                                fit: BoxFit.contain,
-                                semanticLabel: 'VitalCare',
                               ),
                             ),
                           ),
@@ -141,7 +149,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             style: TextStyle(
                               fontSize: 15,
                               height: 1.5,
-                              color: Color(0xFF597677),
+                              color: Color(0xFF3E5658),
                             ),
                           ),
                           const SizedBox(height: 28),
@@ -175,7 +183,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               errorMaxLines: 3,
                               hintText: 'Nhập số điện thoại',
                               hintStyle: const TextStyle(
-                                color: Color(0xFF597677),
+                                color: Color(0xFF3E5658),
                               ),
                               filled: true,
                               fillColor: Colors.white,
@@ -191,13 +199,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFFCCDADC),
+                                  color: Color(0xFFA9C1BE),
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(14),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFFCCDADC),
+                                  color: Color(0xFFA9C1BE),
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(

@@ -12,9 +12,9 @@ class MeasurementHistoryScreen extends StatefulWidget {
 }
 
 class _MeasurementHistoryScreenState extends State<MeasurementHistoryScreen> {
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
   int _days = 7;
   late final DateTime _today;
   List<VitalReading> _records = const [];
@@ -56,7 +56,9 @@ class _MeasurementHistoryScreenState extends State<MeasurementHistoryScreen> {
   String _values(VitalReading record) => [
     'SpO₂ ${record.spo2 == null ? '--' : decimal(record.spo2!)}%',
     'Nhịp tim ${record.heartRate ?? '--'} bpm',
-    'Da ${record.skinTemperature == null ? '--' : decimal(record.skinTemperature!)}°C',
+    record.bodyTemperature != null
+        ? 'Cơ thể ${decimal(record.bodyTemperature!)}°C'
+        : 'Da ${record.skinTemperature == null ? '--' : decimal(record.skinTemperature!)}°C',
   ].join(' · ');
 
   String _label(DateTime time) {
@@ -138,7 +140,7 @@ class _MeasurementHistoryScreenState extends State<MeasurementHistoryScreen> {
                                 : _ink,
                           ),
                           side: const WidgetStatePropertyAll(
-                            BorderSide(color: Color(0xFFCCDADC)),
+                            BorderSide(color: Color(0xFFA9C1BE)),
                           ),
                           textStyle: const WidgetStatePropertyAll(
                             TextStyle(
@@ -162,11 +164,14 @@ class _MeasurementHistoryScreenState extends State<MeasurementHistoryScreen> {
                             ),
                           ),
                           if (!_loading && _total > records.length)
-                            Text(
-                              'Hiển thị ${records.length} lần mới nhất',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: _muted,
+                            Flexible(
+                              child: Text(
+                                'Hiển thị ${records.length} lần mới nhất',
+                                textAlign: TextAlign.end,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _muted,
+                                ),
                               ),
                             ),
                         ],
@@ -189,7 +194,7 @@ class _MeasurementHistoryScreenState extends State<MeasurementHistoryScreen> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: const Color(0xFFE0ECE9),
+                                color: const Color(0xFFBDD3CE),
                               ),
                             ),
                             child: Column(

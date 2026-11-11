@@ -1,14 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../ble/band_link.dart';
+import 'common.dart';
 import 'measurement_history_screen.dart';
 
+/// One line on what a sync saved, for a notice or the result screen.
+String syncSummaryText(BandSyncSummary summary) {
+  final parts = [
+    summary.accepted == 0 && summary.duplicates == 0
+        ? 'Không có lần đo mới để lưu.'
+        : 'Đã lưu ${summary.accepted} lần đo lên hệ thống.',
+    if (summary.rejected > 0)
+      '${summary.rejected} lần đo bị từ chối vì thời gian đo không hợp lệ.',
+    if (!summary.finished) 'Chưa đồng bộ hết dữ liệu, hãy thử lại sau.',
+  ];
+  return parts.join(' ');
+}
+
+/// The averages of one measuring session and what was saved.
 class MeasurementResultScreen extends StatelessWidget {
-  const MeasurementResultScreen({super.key, required this.measuredAt});
+  const MeasurementResultScreen({
+    super.key,
+    required this.measuredAt,
+    this.heartRate,
+    this.spo2,
+    this.bodyTemperature,
+    this.skinTemperature,
+    this.bodyUncalibrated = false,
+    this.sync,
+    this.syncError,
+  });
 
   final DateTime measuredAt;
-  static const _primary = Color(0xFF008C91);
+  final double? heartRate;
+  final double? spo2;
+  final double? bodyTemperature;
+  final double? skinTemperature;
+  final bool bodyUncalibrated;
+  final BandSyncSummary? sync;
+  final Object? syncError;
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _muted = Color(0xFF657E80);
+  static const _muted = Color(0xFF3E5658);
 
   String get _time =>
       '${measuredAt.hour.toString().padLeft(2, '0')}:${measuredAt.minute.toString().padLeft(2, '0')}';
@@ -20,14 +53,15 @@ class MeasurementResultScreen extends StatelessWidget {
     String value,
     String unit,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    String note = 'Trung bình lần đo',
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE0ECE9)),
+        border: Border.all(color: const Color(0xFFBDD3CE)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,28 +77,33 @@ class MeasurementResultScreen extends StatelessWidget {
           const SizedBox(height: 14),
           Text(label, style: const TextStyle(fontSize: 13, color: _muted)),
           const SizedBox(height: 8),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: value,
-                  style: const TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
+          // The number shrinks to fit its card rather than breaking mid-value on a narrow phone.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: value,
+                    style: const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.w700,
+                      color: _ink,
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: unit,
-                  style: const TextStyle(fontSize: 12, color: _ink),
-                ),
-              ],
+                  TextSpan(
+                    text: unit,
+                    style: const TextStyle(fontSize: 12, color: _ink),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Bình thường',
-            style: TextStyle(fontSize: 11, color: Color(0xFF33846B)),
+          Text(
+            note,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF24704F)),
           ),
           const SizedBox(height: 5),
           Text(_time, style: const TextStyle(fontSize: 11, color: _muted)),
@@ -130,7 +169,7 @@ class MeasurementResultScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '$_date · $_time · Dữ liệu mô phỏng',
+                        '$_date · $_time',
                         style: const TextStyle(fontSize: 13, color: _muted),
                       ),
                       const SizedBox(height: 20),
@@ -139,25 +178,45 @@ class MeasurementResultScreen extends StatelessWidget {
                           final cards = [
                             _metric(
                               'SpO₂',
-                              '98',
+                              spo2 == null ? '--' : '${spo2!.round()}',
                               '%',
                               Icons.water_drop_outlined,
-                              const Color(0xFF298CAB),
+                              const Color(0xFF1F6F8A),
                             ),
                             _metric(
                               'Nhịp tim',
-                              '72',
+                              heartRate == null
+                                  ? '--'
+                                  : '${heartRate!.round()}',
                               ' bpm',
                               Icons.favorite_border_rounded,
-                              const Color(0xFFD0767F),
+                              const Color(0xFFB23A48),
                             ),
-                            _metric(
-                              'Nhiệt độ da',
-                              '33,4',
-                              '°C',
-                              Icons.thermostat_rounded,
-                              const Color(0xFFC28B3A),
-                            ),
+                            if (bodyTemperature != null ||
+                                skinTemperature == null)
+                              _metric(
+                                'Nhiệt độ cơ thể (ước tính)',
+                                bodyTemperature == null
+                                    ? '--'
+                                    : decimal(bodyTemperature!),
+                                '°C',
+                                Icons.thermostat_rounded,
+                                const Color(0xFF8A5A12),
+                                note: [
+                                  'Trung bình lần đo',
+                                  if (skinTemperature != null)
+                                    'Da ${decimal(skinTemperature!)}°C',
+                                  if (bodyUncalibrated) 'chưa hiệu chuẩn',
+                                ].join(' · '),
+                              )
+                            else
+                              _metric(
+                                'Nhiệt độ da',
+                                decimal(skinTemperature!),
+                                '°C',
+                                Icons.thermostat_rounded,
+                                const Color(0xFF8A5A12),
+                              ),
                           ];
                           if (constraints.maxWidth < 300 ||
                               MediaQuery.textScalerOf(context).scale(14) > 19) {
@@ -191,7 +250,7 @@ class MeasurementResultScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFE0ECE9)),
+                          border: Border.all(color: const Color(0xFFBDD3CE)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +275,7 @@ class MeasurementResultScreen extends StatelessWidget {
                                   ),
                                   SizedBox(height: 8),
                                   Text(
-                                    'Các chỉ số mẫu đang ổn định.\nHãy đo đều đặn để theo dõi thay đổi.',
+                                    'Đây là giá trị trung bình trong lần đo này.\nHãy đo đều đặn để theo dõi thay đổi.',
                                     style: TextStyle(
                                       fontSize: 14,
                                       height: 1.6,
@@ -236,19 +295,23 @@ class MeasurementResultScreen extends StatelessWidget {
                           color: const Color(0xFFE2F2ED),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Row(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.info_outline_rounded,
                               size: 21,
                               color: _primary,
                             ),
-                            SizedBox(width: 10),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Kết quả mô phỏng chưa được lưu hoặc đồng bộ. Kết nối thiết bị để nhận kết quả đo thực tế.',
-                                style: TextStyle(
+                                syncError != null
+                                    ? 'Chưa lưu được lên hệ thống: ${errorText(syncError!)} Dữ liệu vẫn còn trên thiết bị, hãy đồng bộ lại sau.'
+                                    : sync != null
+                                    ? syncSummaryText(sync!)
+                                    : 'Kết quả chưa được đồng bộ lên hệ thống.',
+                                style: const TextStyle(
                                   fontSize: 13,
                                   height: 1.5,
                                   color: _ink,
@@ -286,7 +349,7 @@ class MeasurementResultScreen extends StatelessWidget {
                           foregroundColor: _primary,
                           backgroundColor: Colors.white,
                           minimumSize: const Size.fromHeight(54),
-                          side: const BorderSide(color: Color(0xFFCCDADC)),
+                          side: const BorderSide(color: Color(0xFFA9C1BE)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),

@@ -17,8 +17,8 @@ class CaregiverHomeScreen extends StatefulWidget {
 
 class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   static const _ink = Color(0xFF164E50);
-  static const _teal = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _teal = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
   int _tab = 0;
   SharedPatient? _person;
   List<SharedPatient> _people = const [];
@@ -75,9 +75,12 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      // Scrollable and allowed past half the screen: a long message, large text or a phone on its
+      // side would otherwise push the call button off the sheet.
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       builder: (sheet) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -192,7 +195,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                   backgroundColor: Colors.white,
                   foregroundColor: _teal,
                   minimumSize: const Size.fromHeight(52),
-                  side: const BorderSide(color: Color(0xFFCCDADC)),
+                  side: const BorderSide(color: Color(0xFFA9C1BE)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -234,7 +237,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE0ECE9)),
+        side: const BorderSide(color: Color(0xFFBDD3CE)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
@@ -402,7 +405,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
         ),
         NavigationDestination(
           icon: Icon(Icons.favorite_border_rounded),
-          label: 'Được chia sẻ',
+          label: 'Chia sẻ',
         ),
         NavigationDestination(
           icon: Icon(Icons.chat_bubble_outline_rounded),

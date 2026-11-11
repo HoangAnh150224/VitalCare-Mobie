@@ -4,6 +4,7 @@ import '../api/api.dart';
 import 'common.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
+import 'sign_up_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,9 +22,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _busy = false;
   Map<String, String> _serverErrors = const {};
 
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _link = Color(0xFF007C80);
+  static const _link = Color(0xFF00777C);
 
   @override
   void dispose() {
@@ -67,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return InputDecoration(
       hintText: hint,
       errorText: error,
-      hintStyle: const TextStyle(color: Color(0xFF778A91), fontSize: 15),
+      hintStyle: const TextStyle(color: Color(0xFF5F7378), fontSize: 15),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
@@ -75,11 +76,11 @@ class _LoginScreenState extends State<LoginScreen> {
       prefixIcon: Icon(icon, color: _link, size: 22),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFCCDADC)),
+        borderSide: const BorderSide(color: Color(0xFFA9C1BE)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFCCDADC)),
+        borderSide: const BorderSide(color: Color(0xFFA9C1BE)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -122,24 +123,33 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             Align(
                               alignment: Alignment.center,
-                              child: Container(
-                                width: 104,
-                                height: 104,
-                                clipBehavior: Clip.antiAlias,
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFE1EDEA),
+                              // Smaller on a phone on its side, where the full-size logo takes a third of the height.
+                              child: SizedBox.square(
+                                dimension:
+                                    MediaQuery.sizeOf(context).height < 500
+                                    ? 64
+                                    : 104,
+                                child: FittedBox(
+                                  child: Container(
+                                    width: 104,
+                                    height: 104,
+                                    clipBehavior: Clip.antiAlias,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFE1EDEA),
+                                      ),
+                                    ),
+                                    child: Image.asset(
+                                      'assets/images/logo.jpg',
+                                      height: 80,
+                                      width: 88,
+                                      fit: BoxFit.contain,
+                                      semanticLabel: 'VitalCare',
+                                    ),
                                   ),
-                                ),
-                                child: Image.asset(
-                                  'assets/images/logo.jpg',
-                                  height: 80,
-                                  width: 88,
-                                  fit: BoxFit.contain,
-                                  semanticLabel: 'VitalCare',
                                 ),
                               ),
                             ),
@@ -269,13 +279,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                       semanticLabel: 'Ghi nhớ đăng nhập',
                                     ),
-                                    GestureDetector(
-                                      onTap: () => setState(
-                                        () => _rememberLogin = !_rememberLogin,
-                                      ),
-                                      child: const Text(
-                                        'Ghi nhớ đăng nhập',
-                                        style: TextStyle(color: _ink),
+                                    // Flexible: on a narrow phone or with large text the label wraps
+                                    // instead of pushing the row off the screen.
+                                    Flexible(
+                                      child: GestureDetector(
+                                        onTap: () => setState(
+                                          () =>
+                                              _rememberLogin = !_rememberLogin,
+                                        ),
+                                        child: const Text(
+                                          'Ghi nhớ đăng nhập',
+                                          style: TextStyle(color: _ink),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -324,11 +339,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     const SizedBox(width: 12),
                                   ],
-                                  const Text(
-                                    'Đăng nhập',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
+                                  const Flexible(
+                                    child: Text(
+                                      'Đăng nhập',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -337,6 +355,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                     size: 20,
                                   ),
                                 ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const SignUpScreen(),
+                                ),
+                              ),
+                              child: const Text(
+                                'Chưa có tài khoản? Đăng ký',
+                                style: TextStyle(
+                                  color: _link,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],

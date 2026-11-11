@@ -3,10 +3,19 @@ import 'package:flutter/services.dart';
 import '../api/api.dart';
 import 'common.dart';
 
+/// The SMS code step, for password recovery or, with [registration], for
+/// creating an account (UC-04).
 class VerificationPinScreen extends StatefulWidget {
-  const VerificationPinScreen({super.key, required this.phoneNumber});
+  const VerificationPinScreen({
+    super.key,
+    required this.phoneNumber,
+    this.registration,
+  });
 
   final String phoneNumber;
+
+  /// The account being registered; null for password recovery.
+  final ({String fullName, String password})? registration;
 
   @override
   State<VerificationPinScreen> createState() => _VerificationPinScreenState();
@@ -17,9 +26,9 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
   final _pinKey = GlobalKey<FormFieldState<String>>();
   final _digits = List.generate(6, (_) => TextEditingController());
   final _focusNodes = List.generate(6, (_) => FocusNode());
-  static const _primary = Color(0xFF008C91);
+  static const _primary = Color(0xFF00777C);
   static const _ink = Color(0xFF164E50);
-  static const _link = Color(0xFF007C80);
+  static const _link = Color(0xFF00777C);
   bool _busy = false;
   bool _resending = false;
   String? _otpError;
@@ -120,7 +129,7 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                           borderSide: BorderSide(
                             color: error != null
                                 ? Theme.of(context).colorScheme.error
-                                : const Color(0xFFCCDADC),
+                                : const Color(0xFFA9C1BE),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -157,7 +166,10 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
     if (_resending) return;
     setState(() => _resending = true);
     try {
-      await Api.instance.auth.requestResetCode(widget.phoneNumber);
+      final auth = Api.instance.auth;
+      await (widget.registration == null
+          ? auth.requestResetCode(widget.phoneNumber)
+          : auth.requestRegistrationCode(widget.phoneNumber));
       if (mounted) showNotice(context, 'Đã gửi lại mã xác nhận qua SMS.');
     } on ApiException catch (e) {
       if (mounted) showError(context, e);
@@ -172,6 +184,8 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     final code = _code;
+    final registration = widget.registration;
+    if (registration != null) return _register(registration, code);
     setState(() => _busy = true);
     try {
       await Api.instance.auth.checkResetCode(widget.phoneNumber, code);
@@ -197,6 +211,53 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
         'Đã đặt lại mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới.',
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  /// UC-04: the code is checked, the profiles with the number are offered to
+  /// claim one (or "not me"), then the account is created.
+  Future<void> _register(
+    ({String fullName, String password}) registration,
+    String code,
+  ) async {
+    final auth = Api.instance.auth;
+    setState(() => _busy = true);
+    try {
+      final matches = await auth.checkRegistrationCode(
+        widget.phoneNumber,
+        code,
+      );
+      int? claim;
+      if (matches.isNotEmpty) {
+        if (!mounted) return;
+        // The id picked, or -1 for "not me"; null when the dialog is closed.
+        final picked = await showDialog<int>(
+          context: context,
+          builder: (_) => _ClaimProfileDialog(matches: matches),
+        );
+        if (picked == null) {
+          if (mounted) setState(() => _busy = false);
+          return;
+        }
+        claim = picked < 0 ? null : picked;
+      }
+      await auth.register(
+        phone: widget.phoneNumber,
+        otp: code,
+        fullName: registration.fullName,
+        password: registration.password,
+        claimProfileId: claim,
+      );
+      if (!mounted) return;
+      showNotice(context, 'Đăng ký thành công. Vui lòng đăng nhập.');
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _otpError = e.field('otp');
+      });
+      if (_otpError == null) showError(context, e);
     }
   }
 
@@ -249,24 +310,33 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                           children: [
                             Align(
                               alignment: Alignment.center,
-                              child: Container(
-                                width: 104,
-                                height: 104,
-                                clipBehavior: Clip.antiAlias,
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFE1EDEA),
+                              // Smaller on a phone on its side, where the full-size logo takes a third of the height.
+                              child: SizedBox.square(
+                                dimension:
+                                    MediaQuery.sizeOf(context).height < 500
+                                    ? 64
+                                    : 104,
+                                child: FittedBox(
+                                  child: Container(
+                                    width: 104,
+                                    height: 104,
+                                    clipBehavior: Clip.antiAlias,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFE1EDEA),
+                                      ),
+                                    ),
+                                    child: Image.asset(
+                                      'assets/images/logo.jpg',
+                                      height: 80,
+                                      width: 88,
+                                      fit: BoxFit.contain,
+                                      semanticLabel: 'VitalCare',
+                                    ),
                                   ),
-                                ),
-                                child: Image.asset(
-                                  'assets/images/logo.jpg',
-                                  height: 80,
-                                  width: 88,
-                                  fit: BoxFit.contain,
-                                  semanticLabel: 'VitalCare',
                                 ),
                               ),
                             ),
@@ -283,13 +353,15 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            const Text(
-                              'Nhập mã xác nhận gồm 6 chữ số từ SMS để khôi phục mật khẩu cho số điện thoại',
+                            Text(
+                              widget.registration == null
+                                  ? 'Nhập mã xác nhận gồm 6 chữ số từ SMS để khôi phục mật khẩu cho số điện thoại'
+                                  : 'Nhập mã xác nhận gồm 6 chữ số từ SMS để đăng ký tài khoản cho số điện thoại',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 15,
                                 height: 1.5,
-                                color: Color(0xFF597677),
+                                color: Color(0xFF3E5658),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -338,7 +410,7 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
                             const Text(
                               'Bạn chưa nhận được mã?',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Color(0xFF597677)),
+                              style: TextStyle(color: Color(0xFF3E5658)),
                             ),
                             TextButton(
                               onPressed: _resending ? null : _resend,
@@ -367,6 +439,61 @@ class _VerificationPinScreenState extends State<VerificationPinScreen> {
       ),
     );
   }
+}
+
+/// UC-04 step 10: the profiles the clinic has with the number, masked; the
+/// person picks their own (its id) or "not me" (-1).
+class _ClaimProfileDialog extends StatefulWidget {
+  const _ClaimProfileDialog({required this.matches});
+
+  final List<ProfileMatch> matches;
+
+  @override
+  State<_ClaimProfileDialog> createState() => _ClaimProfileDialogState();
+}
+
+class _ClaimProfileDialogState extends State<_ClaimProfileDialog> {
+  int? _picked;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Chọn hồ sơ của bạn'),
+    content: SingleChildScrollView(
+      child: RadioGroup<int>(
+        groupValue: _picked,
+        onChanged: (value) => setState(() => _picked = value),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Phòng khám đã có hồ sơ với số điện thoại này. Chọn hồ sơ của chính bạn; '
+              'các hồ sơ còn lại sẽ được thêm vào tài khoản là người thân.',
+            ),
+            const SizedBox(height: 8),
+            for (final match in widget.matches)
+              RadioListTile<int>(value: match.id, title: Text(match.label)),
+            const RadioListTile<int>(
+              value: -1,
+              title: Text('Không phải tôi — tạo hồ sơ mới'),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Hủy'),
+      ),
+      FilledButton(
+        onPressed: _picked == null
+            ? null
+            : () => Navigator.pop(context, _picked),
+        child: const Text('Tạo tài khoản'),
+      ),
+    ],
+  );
 }
 
 /// The last step of recovery: the new password, sent with the checked code.

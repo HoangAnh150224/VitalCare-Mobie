@@ -19,10 +19,10 @@ class HealthView extends StatefulWidget {
 
 class _HealthViewState extends State<HealthView> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
-  static const _normal = Color(0xFF33846B);
-  static const _attention = Color(0xFFB0662A);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
+  static const _normal = Color(0xFF24704F);
+  static const _attention = Color(0xFF93521C);
 
   VitalLatest? _latest;
   List<(DateTime, double)> _spo2 = const [];
@@ -79,7 +79,7 @@ class _HealthViewState extends State<HealthView> {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE0ECE9)),
+      border: Border.all(color: const Color(0xFFBDD3CE)),
     ),
     child: child,
   );
@@ -106,12 +106,17 @@ class _HealthViewState extends State<HealthView> {
           const SizedBox(height: 14),
           Text(label, style: const TextStyle(fontSize: 12, color: _muted)),
           const SizedBox(height: 8),
-          Text(
-            value ?? '--',
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w700,
-              color: _ink,
+          // The number shrinks to fit its card rather than breaking mid-value on a narrow phone.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value ?? '--',
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                color: _ink,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -142,12 +147,21 @@ class _HealthViewState extends State<HealthView> {
     return [
       'SpO₂ ${latest.spo2 == null ? '--' : decimal(latest.spo2!)}%',
       'Nhịp tim ${latest.heartRate ?? '--'} bpm',
-      'Da ${latest.skinTemperature == null ? '--' : decimal(latest.skinTemperature!)}°C',
+      latest.bodyTemperature != null
+          ? 'Cơ thể ${decimal(latest.bodyTemperature!)}°C'
+          : 'Da ${latest.skinTemperature == null ? '--' : decimal(latest.skinTemperature!)}°C',
     ].join(' · ');
   }
 
-  Widget _chartLabel(String text) =>
-      Text(text, style: const TextStyle(fontSize: 11, color: _muted));
+  /// One of three labels under the chart: each takes a third of the width, so a long date wraps
+  /// rather than pushing the row past the screen.
+  Widget _chartLabel(String text, TextAlign align) => Expanded(
+    child: Text(
+      text,
+      textAlign: align,
+      style: const TextStyle(fontSize: 11, color: _muted),
+    ),
+  );
 
   Widget _chart() {
     if (_spo2.length < 2) {
@@ -175,11 +189,13 @@ class _HealthViewState extends State<HealthView> {
         ),
         const SizedBox(height: 10),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _chartLabel(relativeDay(_spo2.first.$1)),
-            _chartLabel(relativeDay(_spo2[_spo2.length ~/ 2].$1)),
-            _chartLabel(relativeDay(_spo2.last.$1)),
+            _chartLabel(relativeDay(_spo2.first.$1), TextAlign.start),
+            _chartLabel(
+              relativeDay(_spo2[_spo2.length ~/ 2].$1),
+              TextAlign.center,
+            ),
+            _chartLabel(relativeDay(_spo2.last.$1), TextAlign.end),
           ],
         ),
       ],
@@ -202,7 +218,7 @@ class _HealthViewState extends State<HealthView> {
               latest?.spo2At,
               VitalMetric.spo2,
               Icons.water_drop_outlined,
-              const Color(0xFF298CAB),
+              const Color(0xFF1F6F8A),
             ),
             _metric(
               'Nhịp tim',
@@ -210,18 +226,27 @@ class _HealthViewState extends State<HealthView> {
               latest?.heartRateAt,
               VitalMetric.heartRate,
               Icons.favorite_border_rounded,
-              const Color(0xFFD0767F),
+              const Color(0xFFB23A48),
             ),
-            _metric(
-              'Nhiệt độ da',
-              latest?.skinTemperature == null
-                  ? null
-                  : '${decimal(latest!.skinTemperature!)}°C',
-              latest?.skinTemperatureAt,
-              VitalMetric.skinTemperature,
-              Icons.thermostat_rounded,
-              const Color(0xFFC28B3A),
-            ),
+            latest?.bodyTemperature != null
+                ? _metric(
+                    'Nhiệt độ cơ thể',
+                    '${decimal(latest!.bodyTemperature!)}°C',
+                    latest.bodyTemperatureAt,
+                    VitalMetric.skinTemperature,
+                    Icons.thermostat_rounded,
+                    const Color(0xFF8A5A12),
+                  )
+                : _metric(
+                    'Nhiệt độ da',
+                    latest?.skinTemperature == null
+                        ? null
+                        : '${decimal(latest!.skinTemperature!)}°C',
+                    latest?.skinTemperatureAt,
+                    VitalMetric.skinTemperature,
+                    Icons.thermostat_rounded,
+                    const Color(0xFF8A5A12),
+                  ),
           ];
           if (constraints.maxWidth < 320 ||
               MediaQuery.textScalerOf(context).scale(14) > 19) {
@@ -355,7 +380,7 @@ class _HealthViewState extends State<HealthView> {
                               backgroundColor: Colors.white,
                               foregroundColor: _primary,
                               minimumSize: const Size.fromHeight(50),
-                              side: const BorderSide(color: Color(0xFFCCDADC)),
+                              side: const BorderSide(color: Color(0xFFA9C1BE)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -425,7 +450,7 @@ class _Spo2Chart extends CustomPainter {
       final label = TextPainter(
         text: TextSpan(
           text: decimal(top - span * i / 2),
-          style: const TextStyle(fontSize: 10, color: Color(0xFF657E80)),
+          style: const TextStyle(fontSize: 10, color: Color(0xFF3E5658)),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -458,14 +483,14 @@ class _Spo2Chart extends CustomPainter {
     canvas.drawPath(
       line,
       Paint()
-        ..color = const Color(0xFF008C91)
+        ..color = const Color(0xFF00777C)
         ..strokeWidth = 2.5
         ..style = PaintingStyle.stroke
         ..strokeJoin = StrokeJoin.round,
     );
     for (final point in points) {
       canvas.drawCircle(point, 4, Paint()..color = Colors.white);
-      canvas.drawCircle(point, 3, Paint()..color = const Color(0xFF008C91));
+      canvas.drawCircle(point, 3, Paint()..color = const Color(0xFF00777C));
     }
   }
 

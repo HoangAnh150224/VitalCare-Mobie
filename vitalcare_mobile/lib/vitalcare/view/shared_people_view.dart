@@ -14,8 +14,8 @@ class SharedPeopleView extends StatefulWidget {
 
 class _SharedPeopleViewState extends State<SharedPeopleView> {
   static const _ink = Color(0xFF164E50);
-  static const _primary = Color(0xFF008C91);
-  static const _muted = Color(0xFF657E80);
+  static const _primary = Color(0xFF00777C);
+  static const _muted = Color(0xFF3E5658);
 
   List<SharedPatient> _people = const [];
   bool _loading = true;
@@ -62,7 +62,7 @@ class _SharedPeopleViewState extends State<SharedPeopleView> {
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFFE0ECE9)),
+          side: const BorderSide(color: Color(0xFFBDD3CE)),
         ),
         child: InkWell(
           onTap: () => widget.onPersonSelected(person),
