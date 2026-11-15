@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vitalcare_mobile/vitalcare/ble/band_link.dart';
 import 'package:vitalcare_mobile/vitalcare/ble/band_protocol.dart';
 import 'package:vitalcare_mobile/vitalcare/api/models.dart';
 
@@ -26,6 +27,57 @@ void main() {
     expect(s.bodyTemperature, 36.40);
     expect(s.heartRateValid, isFalse);
     expect(s.bodyTemperatureValid, isTrue);
+  });
+
+  test('live sample: provisional body temperature', () {
+    List<int> sample(int flags, {bool body = true}) => [
+      ...List.filled(11, 0),
+      flags,
+      0,
+      0,
+      ...(body ? [0x38, 0x0e] : [0x00, 0x80]),
+    ];
+    // Settling (TEMP_UNSTABLE) with a predicted number: shown, not settled.
+    final settling = LiveSample.fromBytes(sample(0x40 | 0x80));
+    expect(settling.bodyTemperature, 36.40);
+    expect(settling.bodyTemperatureProvisional, isTrue);
+    expect(settling.bodyTemperatureValid, isFalse);
+    // Under a minute on the wrist: no number yet.
+    final early = LiveSample.fromBytes(sample(0x40, body: false));
+    expect(early.bodyTemperatureProvisional, isFalse);
+    expect(early.bodyTemperatureValid, isFalse);
+    // Settled.
+    final settled = LiveSample.fromBytes(sample(0x80));
+    expect(settled.bodyTemperatureProvisional, isFalse);
+    expect(settled.bodyTemperatureValid, isTrue);
+  });
+
+  test('pending records estimate', () {
+    // 600 rows in 20 400 bytes: 34 bytes a row.
+    expect(pendingRecordsAfter(40800, 20400, 600), 1200);
+    expect(pendingRecordsAfter(0, 20400, 600), 0);
+    expect(pendingRecordsAfter(null, 20400, 600), isNull);
+    expect(pendingRecordsAfter(40800, 0, 0), isNull);
+  });
+
+  test('provisional and uncalibrated temperatures are uploaded', () {
+    // Settling (TEMP_UNSTABLE): the provisional body temperature is sent, so a quick
+    // measurement still records one.
+    final settling = parseBandCsv(
+      '1761550000,3300,3550,70,97,90,${0x40 | 0x80}',
+    ).single.toReading('X')!;
+    expect(settling.bodyTemperature, 35.5);
+    expect(settling.skinTemperature, 33.0);
+    // Settled but uncalibrated (TEMP_UNCALIBRATED only): uploaded as usual.
+    final uncalibrated = parseBandCsv(
+      '1761550005,3300,3550,70,97,90,${0x80}',
+    ).single.toReading('X')!;
+    expect(uncalibrated.bodyTemperature, 35.5);
+    // Under a minute on the wrist the band has no body temperature yet (tb100 = 0).
+    final early = parseBandCsv(
+      '1761550010,3300,0,70,97,90,${0x40 | 0x80}',
+    ).single.toReading('X')!;
+    expect(early.bodyTemperature, isNull);
   });
 
   test('live sample with invalid temperatures', () {

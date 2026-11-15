@@ -405,11 +405,25 @@ final _screens = <String, Widget Function()>{
     spo2: 99.6,
     bodyTemperature: 36.64,
     skinTemperature: 34.17,
-    bodyUncalibrated: true,
     sync: BandSyncSummary()
       ..segments = 2
       ..accepted = 1240
       ..rejected = 12,
+  ),
+  'Kết quả đo (nhiệt độ tạm thời)': () => MeasurementResultScreen(
+    measuredAt: DateTime(2026, 11, 9, 8, 30),
+    heartRate: 72,
+    bodyTemperature: 36.2,
+    skinTemperature: 33.4,
+    bodyProvisional: true,
+  ),
+  'Kết quả đo (chưa hiệu chuẩn)': () => MeasurementResultScreen(
+    measuredAt: DateTime(2026, 11, 9, 8, 30),
+    heartRate: 72,
+    spo2: 98,
+    bodyTemperature: 36.5,
+    skinTemperature: 33.4,
+    bodyUncalibrated: true,
   ),
   'Kết quả đo (chưa lưu)': () => MeasurementResultScreen(
     measuredAt: DateTime(2026, 11, 9, 8, 30),
