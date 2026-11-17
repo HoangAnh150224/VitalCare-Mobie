@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../api/api.dart';
+import '../api/services/appointment_service.dart';
 import 'common.dart';
 
-/// Registers a visit: a clinic and a day. The clinic places it with its
-/// least-busy doctor that day and gives the next queue number.
+/// Registers a visit: a clinic, the department to be seen in, and a day.
+/// Nobody chooses the doctor: the first free room of that department calls
+/// the patient in, and the visit gets the next queue number.
 ///
 /// Pops with the created [Appointment].
 class ExamRegistrationScreen extends StatefulWidget {
@@ -27,6 +29,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
   Profile? _profile;
   DateTime? _date;
   String? _clinicId;
+  String? _department;
   List<Clinic> _clinics = const [];
   List<Doctor> _doctors = const [];
 
@@ -177,6 +180,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
           child: Text(
             '${_name.text}\n${_phone.text}\nNgày sinh: ${_birth.text.isEmpty ? '—' : _birth.text}\n'
             'Phòng khám: ${_clinics.firstWhere((c) => c.id == _clinicId).name}\n'
+            'Khám khoa: $_department\n'
             'Ngày khám: ${_format(_date!)}\nLý do khám: ${_reason.text.trim()}\n\n'
             'Phòng khám sẽ xếp bạn vào một bác sĩ khám trong ngày; tên bác sĩ và số khám hiện trên phiếu sau khi đăng ký.',
           ),
@@ -203,6 +207,7 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
         patientId: profile == null || profile.self ? null : profile.id,
         clinicId: _clinicId!,
         date: _date!,
+        department: _department!,
         reason: _reason.text.trim(),
       );
       if (mounted) Navigator.pop(context, appointment);
@@ -340,6 +345,37 @@ class _ExamRegistrationScreenState extends State<ExamRegistrationScreen> {
             ),
             const SizedBox(height: 16),
           ],
+          DropdownButtonFormField<String>(
+            initialValue: _department,
+            isExpanded: true,
+            decoration: _decoration(
+              'Khám khoa *',
+              error: _serverErrors['department'],
+            ),
+            hint: const Text('Chọn khoa khám'),
+            items: AppointmentService.departments
+                .map(
+                  (department) => DropdownMenuItem(
+                    value: department,
+                    child: Text(department),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() {
+              _department = value;
+              _serverErrors = const {};
+            }),
+            validator: (value) =>
+                value == null ? 'Vui lòng chọn khoa khám' : null,
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6, left: 12),
+            child: Text(
+              'Bạn được gọi vào một phòng của khoa này.',
+              style: TextStyle(color: Color(0xFF3E5658), fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: 16),
           _dateField(),
           const SizedBox(height: 16),
           if (_dayOpen == false) ...[

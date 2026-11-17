@@ -29,12 +29,18 @@ class AppointmentService {
     _json(await _client.get('/my_appointments/$id/result')),
   );
 
-  /// Registers a visit at [clinicId] on [date]; the clinic places it with its
-  /// least-busy doctor that day and the answer carries the doctor and number.
+  /// The departments a visit can be booked for, as the web offers them.
+  /// Stored as the label itself, as the API keeps it.
+  static const departments = ['Tim mạch', 'Hô hấp'];
+
+  /// Registers a visit at [clinicId] on [date] for [department]: nobody
+  /// chooses the doctor; the first free room of that department calls the
+  /// patient in, and its doctor becomes the visit's.
   Future<Appointment> book({
     int? patientId,
     required String clinicId,
     required DateTime date,
+    required String department,
     required String reason,
   }) async => Appointment.fromJson(
     _json(
@@ -45,6 +51,7 @@ class AppointmentService {
           'appointmentDate': isoDay(date),
           'reason': reason,
           'clinicId': clinicId,
+          'department': department,
         },
       ),
     ),
