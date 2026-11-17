@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalcare_mobile/vitalcare/ble/band_protocol.dart';
+import 'package:vitalcare_mobile/vitalcare/api/models.dart';
 
 List<int> hex(String s) => [
   for (var i = 0; i < s.length; i += 2)
@@ -159,4 +160,56 @@ void main() {
       isNull,
     );
   });
+  test(
+    'an abnormal live reading goes up after 5 in a row, then every 5 seconds',
+    () {
+      LiveSample sample(int spo2, int hr) => LiveSample.fromBytes([
+        0, 0, 0, 0, 0x44, 0x0e, hr, 0, spo2, 99, 3, 0, 1, 0, 0, 0x80, //
+      ]);
+      final detector = LiveAlertDetector();
+      final t0 = DateTime.utc(2026, 11, 18);
+      DeviceReading? at(int second, int spo2, [int hr = 70]) => detector.check(
+        sample(spo2, hr),
+        'VC-1',
+        t0.add(Duration(seconds: second)),
+      );
+
+      for (var i = 0; i < 4; i++) {
+        expect(at(i, 85), isNull);
+      }
+      final sent = at(4, 85, 128)!;
+      expect(sent.spo2, 85);
+      expect(sent.toJson()['alerts'], [
+        {
+          'metric': 'SPO2',
+          'severity': 'CRITICAL',
+          'operator': 'BELOW',
+          'threshold': 90,
+        },
+        {
+          'metric': 'HEART_RATE',
+          'severity': 'WARNING',
+          'operator': 'ABOVE',
+          'threshold': 120,
+        },
+      ]);
+      expect(at(7, 85), isNull, reason: 'not again within 5 seconds');
+      expect(at(9, 85), isNotNull);
+      expect(at(65, 97), isNull);
+      expect(detector.abnormal, isFalse);
+      expect(
+        at(66, 85),
+        isNull,
+        reason: 'a new episode waits for 5 in a row again',
+      );
+      // A normal reading carries no alerts key at all.
+      expect(
+        DeviceReading(
+          clientRecordId: 'a',
+          measuredAt: t0,
+        ).toJson().containsKey('alerts'),
+        isFalse,
+      );
+    },
+  );
 }

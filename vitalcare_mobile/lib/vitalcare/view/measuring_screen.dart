@@ -138,6 +138,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
     String unit,
     IconData icon,
     Color color, {
+    List<double> series = const [],
     String status = 'Đang đo',
     String note = 'Trực tiếp',
   }) {
@@ -182,6 +183,20 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                     style: const TextStyle(fontSize: 12, color: _ink),
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // The last minute of readings: level while the value holds, up or down as it moves.
+          SizedBox(
+            height: 44,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _TracePainter(
+                series.length > _TracePainter.points
+                    ? series.sublist(series.length - _TracePainter.points)
+                    : series,
+                color,
               ),
             ),
           ),
@@ -319,6 +334,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                               '%',
                               Icons.water_drop_outlined,
                               const Color(0xFF1F6F8A),
+                              series: _spo2s,
                             ),
                             _metric(
                               'Nhịp tim',
@@ -328,6 +344,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                               ' bpm',
                               Icons.favorite_border_rounded,
                               const Color(0xFFB23A48),
+                              series: _heartRates,
                             ),
                             _metric(
                               'Nhiệt độ cơ thể (ước tính)',
@@ -337,6 +354,7 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                               '°C',
                               Icons.thermostat_rounded,
                               const Color(0xFF8A5A12),
+                              series: _bodies.isNotEmpty ? _bodies : _skins,
                               status: last != null && !last.bodyTemperatureValid
                                   ? 'Đang ổn định nhiệt…'
                                   : 'Đang đo',
@@ -432,4 +450,53 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
       ),
     );
   }
+}
+
+/// A measure's last readings, one a second, newest at the right edge: the line
+/// runs level while the value holds and steps up or down as it changes. With
+/// no reading yet it lies flat and faint along the bottom.
+class _TracePainter extends CustomPainter {
+  _TracePainter(this.values, this.color);
+
+  static const points = 60;
+
+  final List<double> values;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = size.height - 5;
+    const top = 6.0;
+    final line = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    if (values.isEmpty) {
+      canvas.drawLine(
+        Offset(0, base),
+        Offset(size.width, base),
+        line..color = color.withValues(alpha: 0.3),
+      );
+      return;
+    }
+    // A few units of room either way, so one step up or down shows without filling the card.
+    final low = values.reduce((a, b) => a < b ? a : b) - 3;
+    final high = values.reduce((a, b) => a > b ? a : b) + 3;
+    final step = size.width / (points - 1);
+    Offset at(int i) => Offset(
+      size.width - (values.length - 1 - i) * step,
+      base - (values[i] - low) / (high - low) * (base - top),
+    );
+    final path = Path()..moveTo(at(0).dx, at(0).dy);
+    for (var i = 1; i < values.length; i++) {
+      path.lineTo(at(i).dx, at(i).dy);
+    }
+    canvas.drawPath(path, line);
+    canvas.drawCircle(at(values.length - 1), 3, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_TracePainter old) => true;
 }

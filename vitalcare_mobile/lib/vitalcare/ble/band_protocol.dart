@@ -260,3 +260,75 @@ List<BandRecord> parseBandCsv(String csv) {
   }
   return records;
 }
+
+/// The thresholds the app holds live samples against, and when an abnormal
+/// one is worth sending up at once: after [hold] abnormal samples in a row
+/// (a second each), then every [repeat] for as long as it stays abnormal.
+// ponytail: fixed thresholds, SpO2 and heart rate only; per-patient thresholds from the server
+// and body temperature (the two firmwares disagree on those bytes) are the upgrade.
+class LiveAlertDetector {
+  static const hold = 5;
+  static const repeat = Duration(seconds: 5);
+  static const minConfidence = 80;
+  static const spo2Below = 90;
+  static const heartRateAbove = 120;
+
+  int _streak = 0;
+  DateTime? _sentAt;
+
+  /// True while the last sample was abnormal.
+  bool get abnormal => _streak > 0;
+
+  static List<Json> alertsOf(LiveSample s) => [
+    if (s.confidence >= minConfidence && s.spo2Valid && s.spo2 < spo2Below)
+      {
+        'metric': 'SPO2',
+        'severity': 'CRITICAL',
+        'operator': 'BELOW',
+        'threshold': spo2Below,
+      },
+    if (s.confidence >= minConfidence &&
+        s.heartRateValid &&
+        s.heartRate > heartRateAbove)
+      {
+        'metric': 'HEART_RATE',
+        'severity': 'WARNING',
+        'operator': 'ABOVE',
+        'threshold': heartRateAbove,
+      },
+  ];
+
+  /// The reading to send for [sample], or null when there is nothing to send now.
+  DeviceReading? check(LiveSample sample, String deviceCode, DateTime now) {
+    final alerts = alertsOf(sample);
+    if (alerts.isEmpty) {
+      _streak = 0;
+      _sentAt = null;
+      return null;
+    }
+    _streak++;
+    final sentAt = _sentAt;
+    if (_streak < hold || (sentAt != null && now.difference(sentAt) < repeat)) {
+      return null;
+    }
+    _sentAt = now;
+    return DeviceReading(
+      clientRecordId: '$deviceCode-live-${now.millisecondsSinceEpoch ~/ 1000}',
+      measuredAt: now,
+      heartRate: sample.heartRateValid ? sample.heartRate : null,
+      spo2: sample.spo2Valid ? sample.spo2.toDouble() : null,
+      skinTemperature: sample.skinTemperatureValid
+          ? sample.skinTemperature
+          : null,
+      alerts: alerts,
+    );
+  }
+}
+
+/// "SpO₂ dưới 90%": an alert of [LiveAlertDetector] in words.
+String alertText(Json alert) {
+  final spo2 = alert['metric'] == 'SPO2';
+  return '${spo2 ? 'SpO₂' : 'Nhịp tim'} '
+      '${alert['operator'] == 'BELOW' ? 'dưới' : 'trên'} '
+      '${alert['threshold']}${spo2 ? '%' : ' lần/phút'}';
+}

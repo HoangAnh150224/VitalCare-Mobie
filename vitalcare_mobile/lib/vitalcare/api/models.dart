@@ -645,6 +645,7 @@ class DeviceReading {
     this.heartRate,
     this.skinTemperature,
     this.bodyTemperature,
+    this.alerts = const [],
   });
 
   final String clientRecordId;
@@ -654,6 +655,10 @@ class DeviceReading {
   final double? skinTemperature;
   final double? bodyTemperature;
 
+  /// What the band or the app found abnormal in this reading:
+  /// `{metric, severity, operator, threshold}` each.
+  final List<Json> alerts;
+
   Json toJson() => {
     'clientRecordId': clientRecordId,
     'measuredAt': isoInstant(measuredAt),
@@ -661,6 +666,7 @@ class DeviceReading {
     'heartRate': ?heartRate,
     'skinTemperature': ?skinTemperature,
     'bodyTemperature': ?bodyTemperature,
+    if (alerts.isNotEmpty) 'alerts': alerts,
   };
 }
 

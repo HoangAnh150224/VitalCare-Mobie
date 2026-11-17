@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api/api.dart';
 import '../ble/band_link.dart';
+import '../ble/band_watch.dart';
 import 'common.dart';
 import 'measurement_result_screen.dart';
 import 'measuring_screen.dart';
@@ -29,15 +30,30 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
   @override
   void initState() {
     super.initState();
+    BandWatch.link.addListener(_onWatch);
+    BandWatch.alert.addListener(_onStatus);
+    _onWatch();
     _load();
   }
 
+  // The band stays connected after this screen closes: BandWatch keeps it.
   @override
   void dispose() {
+    BandWatch.link.removeListener(_onWatch);
+    BandWatch.alert.removeListener(_onStatus);
     _link?.status.removeListener(_onStatus);
     _link?.connected.removeListener(_onStatus);
-    _link?.disconnect();
     super.dispose();
+  }
+
+  /// Follows the band BandWatch holds, which changes when it reconnects.
+  void _onWatch() {
+    _link?.status.removeListener(_onStatus);
+    _link?.connected.removeListener(_onStatus);
+    _link = BandWatch.link.value;
+    _link?.status.addListener(_onStatus);
+    _link?.connected.addListener(_onStatus);
+    _onStatus();
   }
 
   void _onStatus() {
@@ -51,28 +67,14 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     final device = _device;
     if (device == null || _busy) return;
     setState(() => _busy = true);
-    BandLink? link;
     try {
-      _link?.status.removeListener(_onStatus);
-      _link?.connected.removeListener(_onStatus);
-      await _link?.disconnect();
-      _link = null;
-      link = await BandLink.connect(device.deviceCode);
+      await BandWatch.connect(device.deviceCode);
       final paired = device.pairedWithMe
           ? device
           : await Api.instance.devices.pair(device.deviceCode);
-      if (!mounted) {
-        await link.disconnect();
-        return;
-      }
-      link.status.addListener(_onStatus);
-      link.connected.addListener(_onStatus);
-      setState(() {
-        _device = paired;
-        _link = link;
-      });
+      if (mounted) setState(() => _device = paired);
     } catch (e) {
-      await link?.disconnect();
+      await BandWatch.stop();
       if (mounted) showError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -144,6 +146,8 @@ class _MeasurementScreenState extends State<MeasurementScreen> {
     if (!_connected) {
       return 'Bật thiết bị đo, để gần điện thoại rồi bấm Kết nối.';
     }
+    final alert = BandWatch.alert.value;
+    if (alert != null) return alert;
     final pending = _link!.status.value?.pendingSegments ?? 0;
     return pending > 0
         ? 'Bạn đã sẵn sàng đo. Thiết bị còn $pending phần dữ liệu chưa đồng bộ.'

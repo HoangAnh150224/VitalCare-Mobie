@@ -44,8 +44,8 @@ class BandLink {
   final _subscriptions = <StreamSubscription<Object?>>[];
   bool _syncing = false;
 
-  static bool get supported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  // In a browser the band is reached over Web Bluetooth (Chrome and Edge, on https or localhost).
+  static bool get supported => kIsWeb || Platform.isAndroid || Platform.isIOS;
 
   /// Realtime samples, one a second.
   Stream<LiveSample> get live => _live.stream;
@@ -65,13 +65,16 @@ class BandLink {
       );
     }
     final code = deviceCode.toUpperCase();
-    final state = await FlutterBluePlus.adapterState
-        .where((s) => s != BluetoothAdapterState.unknown)
-        .first
-        .timeout(
-          const Duration(seconds: 3),
-          onTimeout: () => BluetoothAdapterState.unknown,
-        );
+    // A browser does not report the adapter's state; it asks the user to pick the band instead.
+    final state = kIsWeb
+        ? BluetoothAdapterState.on
+        : await FlutterBluePlus.adapterState
+              .where((s) => s != BluetoothAdapterState.unknown)
+              .first
+              .timeout(
+                const Duration(seconds: 3),
+                onTimeout: () => BluetoothAdapterState.unknown,
+              );
     if (state == BluetoothAdapterState.unauthorized) {
       throw const BandException(
         'Hãy cho phép VitalCare dùng Bluetooth trong phần Cài đặt.',
@@ -100,7 +103,7 @@ class BandLink {
           timeout: const Duration(seconds: 15),
         );
       }
-      if (Platform.isAndroid) {
+      if (!kIsWeb && Platform.isAndroid) {
         // Larger packets make syncing faster; the band still works at the default MTU, only
         // in smaller chunks, so a refusal is not a reason to fail the connection.
         try {
@@ -174,6 +177,8 @@ class BandLink {
     FlutterBluePlus.cancelWhenScanComplete(subscription);
     await FlutterBluePlus.startScan(
       withServices: [Guid(bandServiceUuid)],
+      // Web Bluetooth only opens the services named when the device is picked.
+      webOptionalServices: [Guid(bandServiceUuid)],
       timeout: const Duration(seconds: 12),
     );
     await FlutterBluePlus.isScanning.where((s) => !s).first;
