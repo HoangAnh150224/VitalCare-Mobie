@@ -31,6 +31,14 @@ class BandSyncSummary {
   bool finished = false;
 }
 
+/// Uploads one batch of readings; [pendingRecords] estimates how many the
+/// band still holds after this segment.
+typedef BandUpload =
+    Future<SyncResult> Function(
+      List<DeviceReading> readings,
+      int? pendingRecords,
+    );
+
 /// A connection to the patient's VitalCare band over BLE.
 class BandLink {
   BandLink._(this.deviceCode, this._device, this._control, this._sync);
@@ -189,12 +197,11 @@ class BandLink {
   /// (size + CRC-32), uploaded with [upload] in batches of 500, and only then
   /// acknowledged so the band may delete it. A bad segment is aborted and
   /// asked for again once; a failed upload aborts and rethrows.
-  Future<BandSyncSummary> sync(
-    Future<SyncResult> Function(List<DeviceReading>) upload,
-  ) async {
+  Future<BandSyncSummary> sync(BandUpload upload) async {
     if (_syncing) throw const BandException('Đang đồng bộ dữ liệu.');
     _syncing = true;
     final summary = BandSyncSummary();
+    var pendingBytes = status.value?.pendingBytes;
     final packets = StreamController<SyncPacket>();
     final source = _sync.onValueReceived
         .where((v) => v.length >= 5)
@@ -237,6 +244,16 @@ class BandLink {
 
         final records = parseBandCsv(utf8.decode(bytes, allowMalformed: true));
         final readings = [for (final r in records) ?r.toReading(deviceCode)];
+        if (pendingBytes != null) {
+          pendingBytes = pendingBytes > bytes.length
+              ? pendingBytes - bytes.length
+              : 0;
+        }
+        final pendingRecords = pendingRecordsAfter(
+          pendingBytes,
+          bytes.length,
+          records.length,
+        );
         try {
           for (var i = 0; i < readings.length; i += _readings) {
             final result = await upload(
@@ -246,6 +263,7 @@ class BandLink {
                     ? readings.length
                     : i + _readings,
               ),
+              pendingRecords,
             );
             summary
               ..accepted += result.accepted
@@ -282,4 +300,19 @@ class BandLink {
       // Already gone.
     }
   }
+}
+
+/// Estimates how many records the band still holds from [pendingBytes], using
+/// the row size of a segment just read ([segmentBytes] for [segmentRecords]
+/// rows). Null when there is nothing to go by.
+@visibleForTesting
+int? pendingRecordsAfter(
+  int? pendingBytes,
+  int segmentBytes,
+  int segmentRecords,
+) {
+  if (pendingBytes == null || segmentRecords == 0 || segmentBytes == 0) {
+    return null;
+  }
+  return (pendingBytes * segmentRecords / segmentBytes).round();
 }

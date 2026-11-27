@@ -63,9 +63,19 @@ class LiveSample {
   bool get skinTemperatureValid =>
       flags & BandFlag.tempInvalid == 0 && skinTemperature != null;
 
-  /// False while the band is still settling to the wrist's temperature.
+  /// The settled body temperature, calibrated or not.
   bool get bodyTemperatureValid =>
       flags & BandFlag.tempUnstable == 0 && bodyTemperature != null;
+
+  /// A body temperature the band predicts while it is still settling to the
+  /// wrist (from about a minute after it is put on). Shown as provisional and
+  /// uploaded like a settled one, so a quick 30 s – 1 min measurement still
+  /// records a body temperature.
+  bool get bodyTemperatureProvisional =>
+      flags & BandFlag.tempUnstable != 0 && bodyTemperature != null;
+
+  /// Settled but from a band not yet calibrated: saved like any settled one,
+  /// and flagged on screen.
   bool get bodyTemperatureUncalibrated =>
       flags & BandFlag.tempUncalibrated != 0;
 }
@@ -212,7 +222,9 @@ class BandRecord {
       heartRate: heartRateValid ? hr : null,
       spo2: spo2Valid ? spo2!.toDouble() : null,
       skinTemperature: skinTemperatureValid ? skin : null,
-      bodyTemperature: bodyTemperatureValid ? body : null,
+      // Settled or still settling, calibrated or not: any body temperature the band gives is
+      // sent, so a quick measurement still records one.
+      bodyTemperature: body,
     );
     // ponytail: empty records (band off the wrist) are dropped, not sent as INVALID.
     return reading.heartRate == null &&

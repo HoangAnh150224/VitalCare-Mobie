@@ -11,10 +11,10 @@ import 'measurement_result_screen.dart';
 /// Uploads what the band stored to the patient's record, then lets the band
 /// delete it.
 Future<BandSyncSummary> syncBand(BandLink link, String deviceCode) => link.sync(
-  (readings) => Api.instance.devices.uploadReadings(
+  (readings, pendingRecords) => Api.instance.devices.uploadReadings(
     deviceCode,
     readings,
-    pendingOnDevice: link.status.value?.pendingSegments,
+    pendingOnDevice: pendingRecords,
     battery: link.status.value?.battery,
   ),
 );
@@ -45,7 +45,9 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
   final _heartRates = <double>[];
   final _spo2s = <double>[];
   final _bodies = <double>[];
+  final _provisionalBodies = <double>[];
   final _skins = <double>[];
+  bool _bodyUncalibrated = false;
   bool _finishing = false;
 
   @override
@@ -72,7 +74,13 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
       _last = sample;
       if (sample.heartRateValid) _heartRates.add(sample.heartRate.toDouble());
       if (sample.spo2Valid) _spo2s.add(sample.spo2.toDouble());
-      if (sample.bodyTemperatureValid) _bodies.add(sample.bodyTemperature!);
+      if (sample.bodyTemperatureValid) {
+        _bodies.add(sample.bodyTemperature!);
+        if (sample.bodyTemperatureUncalibrated) _bodyUncalibrated = true;
+      }
+      if (sample.bodyTemperatureProvisional) {
+        _provisionalBodies.add(sample.bodyTemperature!);
+      }
       if (sample.skinTemperatureValid) _skins.add(sample.skinTemperature!);
     });
     if (_heartRates.length >= _target) _finish();
@@ -92,15 +100,22 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
       syncError = e;
     }
     if (!mounted) return;
+    // A settled temperature wins; otherwise the band's latest prediction,
+    // shown as provisional.
+    final settled = _average(_bodies);
+    final provisional = settled == null && _provisionalBodies.isNotEmpty
+        ? _provisionalBodies.last
+        : null;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => MeasurementResultScreen(
           measuredAt: DateTime.now(),
           heartRate: _average(_heartRates),
           spo2: _average(_spo2s),
-          bodyTemperature: _average(_bodies),
+          bodyTemperature: settled ?? provisional,
           skinTemperature: _average(_skins),
-          bodyUncalibrated: _last?.bodyTemperatureUncalibrated ?? false,
+          bodyProvisional: provisional != null,
+          bodyUncalibrated: settled != null && _bodyUncalibrated,
           sync: summary,
           syncError: syncError,
         ),
@@ -111,11 +126,22 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
   String get _bodyNote {
     final last = _last;
     final notes = [
+      if (last != null && last.bodyTemperatureProvisional) 'Số tạm thời',
+      if (last != null &&
+          last.bodyTemperatureValid &&
+          last.bodyTemperatureUncalibrated)
+        'Chưa hiệu chuẩn',
       if (last != null && last.skinTemperatureValid)
         'Da ${decimal(last.skinTemperature!)}°C',
-      if (last != null && last.bodyTemperatureUncalibrated) 'chưa hiệu chuẩn',
     ];
     return notes.isEmpty ? 'Ước tính' : notes.join(' · ');
+  }
+
+  String get _bodyStatus {
+    final last = _last;
+    if (last == null || last.bodyTemperatureValid) return 'Đang đo';
+    if (last.bodyTemperatureProvisional) return 'Đang ổn định nhiệt…';
+    return 'Cần đeo ít nhất 1 phút';
   }
 
   String get _hint {
@@ -348,16 +374,18 @@ class _MeasuringScreenState extends State<MeasuringScreen> {
                             ),
                             _metric(
                               'Nhiệt độ cơ thể (ước tính)',
-                              last != null && last.bodyTemperatureValid
-                                  ? decimal(last.bodyTemperature!)
+                              last?.bodyTemperature != null
+                                  ? decimal(last!.bodyTemperature!)
                                   : '--',
                               '°C',
                               Icons.thermostat_rounded,
                               const Color(0xFF8A5A12),
-                              series: _bodies.isNotEmpty ? _bodies : _skins,
-                              status: last != null && !last.bodyTemperatureValid
-                                  ? 'Đang ổn định nhiệt…'
-                                  : 'Đang đo',
+                              series: _bodies.isNotEmpty
+                                  ? _bodies
+                                  : _provisionalBodies.isNotEmpty
+                                  ? _provisionalBodies
+                                  : _skins,
+                              status: _bodyStatus,
                               note: _bodyNote,
                             ),
                           ];

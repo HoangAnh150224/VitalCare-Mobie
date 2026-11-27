@@ -26,6 +26,7 @@ class MeasurementResultScreen extends StatelessWidget {
     this.spo2,
     this.bodyTemperature,
     this.skinTemperature,
+    this.bodyProvisional = false,
     this.bodyUncalibrated = false,
     this.sync,
     this.syncError,
@@ -36,6 +37,13 @@ class MeasurementResultScreen extends StatelessWidget {
   final double? spo2;
   final double? bodyTemperature;
   final double? skinTemperature;
+
+  /// [bodyTemperature] is the band's prediction while it was still settling:
+  /// shown here marked as provisional (it is saved like a settled one).
+  final bool bodyProvisional;
+
+  /// [bodyTemperature] is settled and saved, but the band is not calibrated:
+  /// flagged so the number is not read as exact.
   final bool bodyUncalibrated;
   final BandSyncSummary? sync;
   final Object? syncError;
@@ -203,10 +211,12 @@ class MeasurementResultScreen extends StatelessWidget {
                                 Icons.thermostat_rounded,
                                 const Color(0xFF8A5A12),
                                 note: [
-                                  'Trung bình lần đo',
+                                  bodyProvisional
+                                      ? 'Số tạm thời'
+                                      : 'Trung bình lần đo',
+                                  if (bodyUncalibrated) 'Chưa hiệu chuẩn',
                                   if (skinTemperature != null)
                                     'Da ${decimal(skinTemperature!)}°C',
-                                  if (bodyUncalibrated) 'chưa hiệu chuẩn',
                                 ].join(' · '),
                               )
                             else
@@ -244,6 +254,50 @@ class MeasurementResultScreen extends StatelessWidget {
                           );
                         },
                       ),
+                      if (bodyProvisional) ...[
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Thiết bị chưa ổn định nhiệt nên nhiệt độ là số tạm thời. Đeo thiết bị thêm khoảng 15 phút để có số chính thức.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: _muted,
+                          ),
+                        ),
+                      ],
+                      if (bodyUncalibrated) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF5E6),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE8C99A)),
+                          ),
+                          child: const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 20,
+                                color: Color(0xFF8A5A12),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Thiết bị chưa được hiệu chuẩn nhiệt độ. Nhiệt độ cơ thể vẫn được lưu nhưng có thể lệch so với nhiệt kế, chỉ nên dùng để tham khảo.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF8A5A12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(20),
